@@ -1,7 +1,7 @@
 function Footer() {
   return (
     <footer className="site-footer">
-      <p>Feito para estudar React passo a passo.</p>
+      <p>Projeto em React adaptado para acompanhar um curso de Cálculo Numérico.</p>
     </footer>
   );
 }

@@ -273,8 +273,7 @@ textarea {
   background: linear-gradient(90deg, #7c2d12, #c19a6b);
 }
 
-.lesson-card.is-featured::after {
-  content: "Nova libera\00E7\00E3o";
+.lesson-badge {
   position: absolute;
   top: 16px;
   right: 18px;
@@ -285,6 +284,11 @@ textarea {
   font-size: 0.72rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.lesson-card.is-featured .lesson-badge {
+  position: absolute;
+  z-index: 1;
 }
 
 @keyframes featured-card-arrival {

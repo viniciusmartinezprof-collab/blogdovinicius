@@ -28,6 +28,10 @@ function LessonCard({ lesson }) {
       onClick={handleOpenExerciseList}
       onKeyDown={handleKeyDown}
     >
+      {lesson.isNewestReleased ? (
+        <span className="lesson-badge">Nova liberação</span>
+      ) : null}
+
       <div className="lesson-card-top">
         <span className="lesson-week">{lesson.moduleLabel}</span>
         <span className={`lesson-status${lesson.isReleased ? " is-open" : ""}`}>

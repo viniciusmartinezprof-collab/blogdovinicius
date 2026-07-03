@@ -3,7 +3,7 @@ function Header() {
     <header className="site-header">
       <div>
         <p className="eyebrow">Primeiro blog em React - FCB Mentorship </p>
-        <h1> Aprendizdo 2026 </h1>
+        <h1> Aprendizado 2026 </h1>
         <p className="hero-text">
           Um espaco para praticar React, registrar estudos.
             </p>

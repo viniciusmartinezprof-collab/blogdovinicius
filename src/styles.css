@@ -1,0 +1,184 @@
+:root {
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  color: #1f2937;
+  background:
+    radial-gradient(circle at top, #fef3c7 0, #fff7ed 24%, #f8fafc 58%),
+    #f8fafc;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+#root {
+  width: 100%;
+}
+
+.page-shell {
+  width: min(1100px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 56px;
+}
+
+.site-header {
+  display: grid;
+  gap: 24px;
+  padding: 24px 0 40px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+  color: #b45309;
+}
+
+.site-header h1 {
+  margin: 0;
+  font-size: clamp(2.6rem, 7vw, 5rem);
+  line-height: 0.95;
+}
+
+.hero-text {
+  max-width: 640px;
+  margin: 16px 0 0;
+  font-size: 1.08rem;
+  color: #4b5563;
+}
+
+.main-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.main-nav a {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(180, 83, 9, 0.14);
+}
+
+.feature-panel,
+.about-panel,
+.learning-panel {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 24px;
+  padding: 24px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 18px 60px rgba(15, 23, 42, 0.06);
+}
+
+.feature-panel {
+  display: grid;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.feature-panel h2,
+.posts-section h2,
+.about-panel h2,
+.learning-panel h2 {
+  margin-top: 0;
+}
+
+.search-row {
+  display: grid;
+  gap: 8px;
+}
+
+.search-row input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+}
+
+.posts-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.post-card {
+  padding: 20px;
+  border-radius: 20px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+}
+
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #92400e;
+}
+
+.post-card h3 {
+  margin-bottom: 10px;
+}
+
+.post-card p {
+  color: #4b5563;
+}
+
+.post-link {
+  display: inline-block;
+  margin-top: 12px;
+  font-weight: 700;
+}
+
+.section-stack {
+  display: grid;
+  gap: 28px;
+}
+
+.learning-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.site-footer {
+  padding-top: 28px;
+  color: #6b7280;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .page-shell {
+    width: min(100% - 20px, 1100px);
+    padding-top: 20px;
+  }
+
+  .feature-panel,
+  .about-panel,
+  .learning-panel,
+  .post-card {
+    padding: 18px;
+  }
+}

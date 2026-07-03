@@ -274,7 +274,7 @@ textarea {
 }
 
 .lesson-card.is-featured::after {
-  content: "Nova liberação";
+  content: "Nova libera\00E7\00E3o";
   position: absolute;
   top: 16px;
   right: 18px;

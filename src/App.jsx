@@ -54,9 +54,7 @@ function App() {
 
       <main className="section-stack">
         <section className="posts-section" id="aulas">
-          <h2>Trilha completa</h2>
-
-          <div className="lesson-section">
+                    <div className="lesson-section">
             <div className="section-heading">
               <h3>Módulos liberados</h3>
               <p>

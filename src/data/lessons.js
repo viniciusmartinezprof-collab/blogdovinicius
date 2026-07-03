@@ -1,4 +1,4 @@
-export const releasedModuleCount = 6;
+export const releasedModuleCount = 1;
 
 // Campo opcional:
 // exerciseListUrl: "https://drive.google.com/..."
@@ -9,7 +9,7 @@ export const lessons = [
     summary: "Bases numéricas, conversões e representação de valores.",
     area: "Fundamentos",
     note: "Revisão conceitual para preparar os próximos módulos.",
-    exerciseListUrl: "https://docs.google.com/document/d/15wQ0rmVwCKrvM2BS9gCY1WLA9twujSBdw9SyP1LfZZI/edit?usp=sharing",
+    exerciseListUrl: "https://drive.google.com/file/d/1CRWxfriDdyoKLAhEJKBeUweMmberN5lc/view?usp=sharings://docs.google.com/document/d/15wQ0rmVwCKrvM2BS9gCY1WLA9twujSBdw9SyP1LfZZI/edit?usp=sharing",
   },
   {
     title: "Aritmética de Ponto Flutuante",

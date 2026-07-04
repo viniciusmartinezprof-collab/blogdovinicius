@@ -1,4 +1,4 @@
-export const releasedModuleCount = 1;
+export const releasedModuleCount = 4;
 
 // Campo opcional:
 // exerciseListUrl: "https://drive.google.com/..."

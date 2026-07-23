@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import AdminCourseManager from "../components/AdminCourseManager.jsx";
+import MathRibbon from "../components/MathRibbon.jsx";
 import {
   createMaterial,
   deleteMaterial,
@@ -104,6 +105,7 @@ function AdminLogin() {
   return (
     <main className="admin-login-shell">
       <section className="admin-login-card" aria-labelledby="admin-login-title">
+        <MathRibbon />
         <p className="eyebrow">Área restrita</p>
         <h1 id="admin-login-title">Administração do portal</h1>
         <p>Entre com a conta autorizada para cadastrar e publicar materiais.</p>
@@ -137,6 +139,7 @@ function AccessDenied() {
   return (
     <main className="admin-login-shell">
       <section className="admin-login-card">
+        <MathRibbon />
         <p className="eyebrow">Acesso negado</p>
         <h1>Esta conta não é administradora.</h1>
         <p>Use a conta que foi cadastrada na tabela de administradores do portal.</p>
@@ -158,6 +161,7 @@ function AdminDashboard({ session }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [adminSection, setAdminSection] = useState("materials");
 
   useEffect(() => {
     async function loadCourses() {
@@ -338,9 +342,10 @@ function AdminDashboard({ session }) {
   return (
     <div className="admin-shell">
       <header className="admin-header">
+        <MathRibbon />
         <div>
           <p className="eyebrow">Área restrita</p>
-          <h1>Administração de materiais</h1>
+          <h1>{adminSection === "materials" ? "Administração de materiais" : "Administração de disciplinas"}</h1>
           <p>Conta ativa: {session.user.email}</p>
         </div>
         <div className="admin-header-actions">
@@ -349,7 +354,26 @@ function AdminDashboard({ session }) {
         </div>
       </header>
 
+      <nav className="admin-section-nav" aria-label="Áreas de administração">
+        <button
+          type="button"
+          className={adminSection === "materials" ? "is-active" : ""}
+          onClick={() => setAdminSection("materials")}
+        >
+          <span>∫</span> Materiais
+        </button>
+        <button
+          type="button"
+          className={adminSection === "courses" ? "is-active" : ""}
+          onClick={() => setAdminSection("courses")}
+        >
+          <span>Σ</span> Disciplinas
+        </button>
+      </nav>
+
       <main className="admin-content">
+        {adminSection === "materials" ? (
+          <>
         <section className="admin-panel">
           <div className="admin-panel-heading">
             <p className="section-kicker">{editingMaterial ? "Edição" : "Novo conteúdo"}</p>
@@ -443,7 +467,8 @@ function AdminDashboard({ session }) {
             ))}
           </ul>
         </section>
-
+          </>
+        ) : (
         <AdminCourseManager
           courses={courses}
           onCoursesChanged={(updatedCourses) => {
@@ -453,6 +478,7 @@ function AdminDashboard({ session }) {
             }
           }}
         />
+        )}
       </main>
     </div>
   );

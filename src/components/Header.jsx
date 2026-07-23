@@ -1,6 +1,9 @@
+import MathRibbon from "./MathRibbon.jsx";
+
 function Header({ course, search, onSearchChange, onBackToCourses }) {
   return (
     <header className="site-header">
+      <MathRibbon />
       <div>
         <p className="eyebrow">{course.institution}</p>
         <p className="course-code">{course.code} · {course.workload}</p>

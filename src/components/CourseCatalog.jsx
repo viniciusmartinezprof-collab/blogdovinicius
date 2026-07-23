@@ -1,7 +1,10 @@
+import MathRibbon from "./MathRibbon.jsx";
+
 function CourseCatalog({ courses, onSelectCourse }) {
   return (
     <main className="course-catalog" aria-labelledby="catalog-title">
       <header className="catalog-header">
+        <MathRibbon />
         <p className="eyebrow">IFPR campus Ivaiporã - Prof. Dr. Vinícius Machado Martinez  </p>
         <h2 id="catalog-title">Disciplinas ministradas </h2>
         <p>

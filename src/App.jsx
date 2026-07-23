@@ -1,8 +1,8 @@
 import { useState } from "react";
 import Footer from "./components/Footer.jsx";
 import Header from "./components/Header.jsx";
-import LessonCard from "./components/LessonCard.jsx";
-import { lessons, releasedModuleCount } from "./data/lessons.js";
+import PostCard from "./components/PostCard.jsx";
+import { posts, publishedPostCount } from "./data/lessons.js";
 
 function App() {
   // Forma simples de ler esta linha:
@@ -10,71 +10,63 @@ function App() {
   const [search, setSearch] = useState("");
 
   // Forma simples de ler este bloco:
-  // "Transforme os dados brutos em objetos prontos para a tela."
-  const courseLessons = lessons.map((lesson, index) => {
-    const lessonNumber = index + 1;
-    const isReleased = lessonNumber <= releasedModuleCount;
-    const isNewestReleased = isReleased && lessonNumber === releasedModuleCount;
+  // "Transforme os textos brutos em publicações prontas para a tela."
+  const blogPosts = posts.map((post, index) => {
+    const postNumber = index + 1;
+    const isPublished = postNumber <= publishedPostCount;
+    const isNewestPublished = isPublished && postNumber === publishedPostCount;
 
     return {
-      id: lessonNumber,
-      area: lesson.area,
-      isReleased,
-      isNewestReleased,
-      moduleLabel: `Módulo ${String(lessonNumber).padStart(2, "0")}`,
-      statusLabel: isReleased ? "Liberado" : "Bloqueado",
-      availabilityLabel: lesson.exerciseListUrl
-        ? "Lista disponível"
-        : "Lista em breve",
-      publicTitle: lesson.title,
-      publicDescription: lesson.summary,
-      teacherNote: lesson.note,
-      exerciseListUrl: lesson.exerciseListUrl || "",
+      id: postNumber,
+      area: post.area,
+      isPublished,
+      isNewestPublished,
+      postLabel: `Publicação ${String(postNumber).padStart(2, "0")}`,
+      statusLabel: isPublished ? "Publicado" : "Rascunho",
+      availabilityLabel: post.postUrl ? "Leitura disponível" : "Em preparação",
+      title: post.title,
+      description: post.summary,
+      note: post.note,
+      postUrl: post.postUrl || "",
     };
   });
 
-  // Forma simples de ler este bloco:
-  // "Pegue apenas os módulos liberados que combinam com a busca."
-  const releasedLessons = courseLessons
-    .filter((lesson) => lesson.isReleased)
-    .filter((lesson) => {
+  // "Pegue apenas as publicações prontas que combinam com a busca."
+  const publishedPosts = blogPosts
+    .filter((post) => post.isPublished)
+    .filter((post) => {
       const normalizedSearch = search.toLowerCase();
 
       return (
-        lesson.publicTitle.toLowerCase().includes(normalizedSearch) ||
-        lesson.publicDescription.toLowerCase().includes(normalizedSearch) ||
-        lesson.moduleLabel.toLowerCase().includes(normalizedSearch) ||
-        lesson.area.toLowerCase().includes(normalizedSearch)
+        post.title.toLowerCase().includes(normalizedSearch) ||
+        post.description.toLowerCase().includes(normalizedSearch) ||
+        post.postLabel.toLowerCase().includes(normalizedSearch) ||
+        post.area.toLowerCase().includes(normalizedSearch)
       );
     })
-    .sort((firstLesson, secondLesson) => secondLesson.id - firstLesson.id);
+    .sort((firstPost, secondPost) => secondPost.id - firstPost.id);
   return (
     <div className="page-shell">
       <Header search={search} onSearchChange={setSearch} />
 
       <main className="section-stack">
-        <section className="posts-section" id="aulas">
-                    <div className="lesson-section">
+        <section className="posts-section" id="publicacoes">
+          <div className="lesson-section">
             <div className="section-heading">
-              <h3>Módulos liberados</h3>
+              <h3>Publicações recentes</h3>
               <p>
-                Os módulos mais recentes aparecem primeiro. Clique em um card
-                para abrir a lista de exercícios, quando ela estiver disponível.
+                As publicações mais recentes aparecem primeiro. Abra um card
+                para ler o conteúdo, quando ele estiver disponível.
               </p>
             </div>
 
             <div className="posts-grid">
-              {releasedLessons.map((lesson) => (
-                <LessonCard
-                  key={lesson.id}
-                  lesson={lesson}
-                />
+              {publishedPosts.map((post) => (
+                <PostCard key={post.id} post={post} />
               ))}
             </div>
           </div>
         </section>
-
-      
       </main>
 
       <Footer />

@@ -1,15 +1,16 @@
-export const releasedModuleCount = 4;
+// Quantidade de publicações já visíveis no blog.
+export const publishedPostCount = 4;
 
 // Campo opcional:
-// exerciseListUrl: "https://drive.google.com/..."
+// postUrl: "https://..."
 
-export const lessons = [
+export const posts = [
   {
     title: "Sistemas de Numeração",
     summary: "Bases numéricas, conversões e representação de valores.",
     area: "Fundamentos",
     note: "Revisão conceitual para preparar os próximos módulos.",
-    exerciseListUrl: "https://drive.google.com/file/d/1CRWxfriDdyoKLAhEJKBeUweMmberN5lc/view?usp=sharings://docs.google.com/document/d/15wQ0rmVwCKrvM2BS9gCY1WLA9twujSBdw9SyP1LfZZI/edit?usp=sharing",
+    postUrl: "https://drive.google.com/file/d/1CRWxfriDdyoKLAhEJKBeUweMmberN5lc/view?usp=sharing",
   },
   {
     title: "Aritmética de Ponto Flutuante",

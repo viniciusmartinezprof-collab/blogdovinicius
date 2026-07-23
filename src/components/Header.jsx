@@ -3,24 +3,24 @@ function Header({ search, onSearchChange }) {
     <header className="site-header">
       <div>
         <p className="eyebrow">
-          Prof. Dr. Vinícius Machado Martinez - Lic. Física - 2026.2
+          Vinícius Machado Martinez · notas e aprendizados
         </p>
-        <h1>Cálculo Numérico (67h)</h1>
+        <h1>Blog pessoal</h1>
         <p className="hero-text">
-          Página de apoio para acesso direto às listas de exercícios liberadas
-          em cada módulo do curso.
+          Um espaço para registrar ideias, estudos e materiais que valem a pena
+          guardar e compartilhar.
         </p>
       </div>    
       <nav className="main-nav" aria-label="Navegação principal">
-        <a href="#aulas">Módulos</a>
+        <a href="#publicacoes">Publicações</a>
       </nav>
 
       <label className="header-search" htmlFor="search-posts">
-        Pesquise por módulo, assunto ou área:
+        Pesquise por publicação, assunto ou área:
         <input
           id="search-posts"
           type="text"
-          placeholder="Ex.: Módulo 03, bisseção, ponto flutuante..."
+          placeholder="Ex.: ponto flutuante, estudo, fundamentos..."
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
         />

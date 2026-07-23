@@ -1,179 +1,81 @@
-# Espaço de Aulas de Cálculo Numérico
+# Blog pessoal
 
-Este projeto é um painel de aulas em React para um curso de Cálculo Numérico
-baseado no curso do professor João Godim.
+Este é o blog pessoal de Vinícius, construído em React. Ele começa como uma
+coleção de publicações curtas e pode evoluir, durante a mentoria de tecnologia,
+para um blog completo com páginas, formulário, API, banco de dados e login.
 
-A proposta é simples:
+## O que já funciona
 
-- o aluno vê apenas as aulas já liberadas;
-- os módulos mais recentes aparecem primeiro;
-- o conteúdo de cada card é editado manualmente;
-- a liberação de novos módulos é controlada por um único número.
+- cabeçalho e apresentação do blog;
+- busca por título, resumo, área ou número da publicação;
+- cards de publicações, ordenados da mais recente para a mais antiga;
+- destaque visual para a publicação mais recente;
+- abertura de uma leitura externa quando houver link;
+- adaptação para telas pequenas.
 
-## Visão geral
+Neste momento não há servidor nem banco de dados: os textos ficam em um
+arquivo do próprio projeto. Essa escolha é intencional e corresponde a uma
+etapa inicial da jornada de construção do blog.
 
-Hoje a aplicação possui:
+## Onde editar as publicações
 
-- cabeçalho;
-- campo de busca;
-- contadores de progresso;
-- cards dos módulos liberados;
-- rodapé.
-
-As aulas não vêm de API nem de banco de dados.
-Todo o conteúdo está em um arquivo local, o que facilita a manutenção e o estudo.
-
-## Onde editar o conteúdo
-
-O principal arquivo de conteúdo é:
-
-- [src/data/lessons.js](/home/vinicius/codes/reactapp/src/data/lessons.js:1)
-
-É nele que você edita:
-
-- `releasedModuleCount`: quantos módulos já estão liberados;
-- `title`: título do módulo;
-- `summary`: descrição principal do card;
-- `area`: área temática exibida no card;
-- `note`: observação complementar exibida no card.
-
-Exemplo:
+O conteúdo está em [src/data/lessons.js](./src/data/lessons.js). Embora o nome
+do arquivo seja legado da versão anterior do projeto, ele agora exporta `posts`.
+Cada item representa uma publicação:
 
 ```js
 {
-  title: "Método da Bisseção",
-  summary: "Método iterativo com garantia de convergência em intervalo válido.",
-  area: "Zeros de Funções",
-  note: "Excelente primeiro método para estudo por ser simples e robusto.",
+  title: "Sistemas de Numeração",
+  summary: "Bases numéricas, conversões e representação de valores.",
+  area: "Fundamentos",
+  note: "Revisão conceitual para preparar os próximos textos.",
+  postUrl: "https://...", // opcional
 }
 ```
 
-## Como liberar novos módulos
-
-No mesmo arquivo `src/data/lessons.js`, altere:
+Para exibir mais publicações, altere no mesmo arquivo:
 
 ```js
-export const releasedModuleCount = 1;
+export const publishedPostCount = 4;
 ```
 
-Se você trocar para `2`, o segundo módulo passa a ficar visível para o aluno.
+Por exemplo, trocar para `5` publica o quinto item da lista. Itens posteriores
+continuam como rascunho e não aparecem no site público.
 
-## Ordem de leitura para entender o projeto
-
-Se alguém abrir este projeto sem conhecer a estrutura, esta é uma boa ordem:
-
-1. `README.md`
-2. `package.json`
-3. `index.html`
-4. `src/main.jsx`
-5. `src/App.jsx`
-6. `src/data/lessons.js`
-7. `src/components/LessonCard.jsx`
-8. `src/components/Header.jsx`
-9. `src/components/Footer.jsx`
-10. `src/styles.css`
-
-## Como o projeto funciona
-
-Fluxo geral:
-
-1. O navegador abre `index.html`.
-2. O React entra na `<div id="root"></div>`.
-3. `src/main.jsx` renderiza o componente `App`.
-4. `src/App.jsx` organiza a tela.
-5. `src/App.jsx` lê os dados de `src/data/lessons.js`.
-6. `LessonCard.jsx` renderiza cada card.
-7. `styles.css` cuida da aparência visual.
-
-## Estrutura atual
+## Estrutura
 
 ```text
-.
-|-- index.html
-|-- package.json
-|-- src
-|   |-- App.jsx
-|   |-- main.jsx
-|   |-- styles.css
-|   |-- components
-|   |   |-- Footer.jsx
-|   |   |-- Header.jsx
-|   |   `-- LessonCard.jsx
-|   `-- data
-|       `-- lessons.js
-`-- README.md
+src/
+├── main.jsx              # inicia o React
+├── App.jsx               # prepara, filtra e exibe as publicações
+├── styles.css            # aparência e responsividade
+├── components/
+│   ├── Header.jsx         # topo e busca
+│   ├── PostCard.jsx       # card de cada publicação
+│   └── Footer.jsx         # rodapé
+└── data/
+    └── lessons.js        # textos e regra de publicação
 ```
 
-## O papel de cada arquivo
-
-### `src/main.jsx`
-
-É o ponto de entrada do React.
-
-Forma simples de entender:
-
-- importa o componente principal;
-- encontra a `div` com id `root`;
-- manda o React desenhar a aplicação ali.
-
-### `src/App.jsx`
-
-É o arquivo principal da tela.
-
-Ele:
-
-- prepara os dados das aulas;
-- controla a busca;
-- separa o que deve aparecer para o aluno;
-- ordena os módulos do mais recente para o mais antigo;
-- renderiza os cards.
-
-### `src/data/lessons.js`
-
-É o arquivo de conteúdo.
-
-Nele ficam:
-
-- a quantidade de módulos liberados;
-- os dados individuais de cada card.
-
-### `src/components/LessonCard.jsx`
-
-Renderiza cada card de módulo.
-
-### `src/components/Header.jsx`
-
-Renderiza o topo da página.
-
-### `src/components/Footer.jsx`
-
-Renderiza o rodapé.
-
-### `src/styles.css`
-
-Controla o visual da aplicação:
-
-- tipografia;
-- cores;
-- espaçamentos;
-- layout dos cards;
-- responsividade.
-
-## Como rodar o projeto
+## Como executar
 
 ```bash
+npm install
 npm run dev
 ```
 
-Depois, abra a URL exibida pelo Vite no terminal.
-Normalmente será algo como:
+Abra no navegador o endereço exibido no terminal, normalmente
+`http://localhost:5173`.
 
-```text
-http://localhost:5173
+Para gerar a versão de produção:
+
+```bash
+npm run build
 ```
 
-## Resumo rápido
+## Próximas evoluções na mentoria
 
-Se você quiser guardar a ideia principal:
-
-`main.jsx` inicia o React, `App.jsx` monta a tela, `lessons.js` guarda o conteúdo dos módulos, `LessonCard.jsx` renderiza cada aula e `styles.css` cuida da aparência.
+1. Trocar os links externos por páginas próprias de cada post.
+2. Criar uma tela/formulário para escrever publicações.
+3. Guardar os posts no navegador e depois em uma API.
+4. Usar PostgreSQL, login, testes e publicação em produção.

@@ -1,244 +1,294 @@
-# Portal de disciplinas
+# Portal de Disciplinas
 
-Este projeto é um site acadêmico para reunir materiais de disciplinas. A pessoa que acessa o site escolhe uma disciplina e vê os materiais que já foram liberados.
+Portal acadêmico para disponibilizar materiais de disciplinas, com uma área pública para estudantes e uma área administrativa protegida para o docente.
 
-Hoje existem dois espaços:
+O projeto está em produção como um site estático React hospedado no Render. Os conteúdos, usuários e PDFs ficam no Supabase.
 
-- **Cálculo Numérico**: possui materiais cadastrados.
-- **Cálculo Diferencial e Integral I**: possui página própria e está pronto para receber materiais.
+## O que o portal faz hoje
 
-O portal não usa banco de dados nem painel administrativo. As disciplinas e os materiais ficam em arquivos simples do projeto, para que possam ser editados diretamente.
+Para estudantes:
+
+- exibe um catálogo de disciplinas;
+- mostra somente materiais publicados;
+- permite buscar materiais por título, resumo, área ou número;
+- abre links externos e PDFs em outra aba;
+- adapta o layout para celular.
+
+Para o administrador:
+
+- faz login por e-mail e senha;
+- cria, edita e exclui disciplinas;
+- cria, edita, publica, despublica e exclui materiais;
+- envia PDFs diretamente pelo navegador;
+- mantém rascunhos invisíveis para o público.
 
 ## A ideia em linguagem simples
 
-Imagine o site como uma biblioteca digital.
+Imagine que o portal é uma biblioteca.
 
-1. `courses.js` é o catálogo de disciplinas.
-2. `lessons.js` é, por enquanto, a lista de materiais de Cálculo Numérico.
-3. O React lê essas listas e cria as telas automaticamente.
-4. Os componentes são peças reutilizáveis: catálogo, cabeçalho, card e rodapé.
-5. O CSS define a aparência acadêmica, fontes, cores e versão para celular.
+- Supabase é a sala onde ficam dados, usuários e PDFs.
+- React é quem monta as telas que estudantes e docente enxergam.
+- Render é o endereço público que entrega o site na internet.
+- A área pública é a estante que qualquer estudante consulta.
+- A área /admin é o balcão reservado ao docente.
 
-Assim, não é necessário criar manualmente um card no HTML: ao colocar um item na lista, o site cria o card correspondente.
+    Docente → /admin → login → cria ou altera conteúdos → Supabase guarda
+    Estudante → área pública → React consulta Supabase → vê itens publicados
 
-## Como a página funciona
+## Tecnologias
 
-```text
-Navegador
-  → index.html abre um espaço vazio chamado #root
-  → src/main.jsx inicia o React nesse espaço
-  → src/App.jsx organiza o site
-       ├─ lê src/data/courses.js
-       ├─ mostra CourseCatalog.jsx para escolher uma disciplina
-       └─ depois da escolha:
-            ├─ Header.jsx mostra os dados da disciplina
-            ├─ App.jsx filtra e ordena os materiais
-            ├─ PostCard.jsx desenha cada material
-            └─ Footer.jsx desenha o rodapé
-```
+| Tecnologia | Explicação simples | Uso no portal |
+|---|---|---|
+| HTML | Estrutura da página web. | index.html é a porta de entrada. |
+| CSS | Regras de aparência. | Define identidade acadêmica e celular. |
+| JavaScript | Linguagem de comportamento. | Busca, formulários, login e banco. |
+| React | Biblioteca de telas reutilizáveis. | Monta catálogo, cards e administração. |
+| React Router | Navegação sem recarregar. | Define / e /admin. |
+| Vite | Ferramenta de desenvolvimento. | Executa e compila o projeto. |
+| Supabase | Backend pronto para uso. | Banco, autenticação, regras e PDFs. |
+| PostgreSQL | Banco relacional. | Guarda disciplinas e materiais. |
+| Supabase Storage | Armazenamento de arquivos. | Guarda PDFs. |
+| Render | Hospedagem. | Publica o site. |
+| npm | Gerenciador de pacotes. | Instala e executa comandos. |
 
-Em outras palavras, `App.jsx` é o organizador: ele decide o que aparece, enquanto os componentes desenham cada parte.
+## Rotas
 
-## Como o estudante navega
+| Endereço | Público | Finalidade |
+|---|---:|---|
+| / | Sim | Catálogo de disciplinas e materiais liberados. |
+| /admin | Não | Login e painel administrativo. |
 
-1. A tela inicial mostra as disciplinas cadastradas.
-2. **Acessar disciplina** abre o espaço escolhido.
-3. **← Disciplinas** retorna ao catálogo.
-4. A busca procura por título, resumo, área ou número do material.
-5. Um card com link abre o material em outra aba. Sem link, ele informa que o material está em preparação.
+A rota /admin aparece no navegador, mas a proteção não depende apenas de escondê-la. O Supabase verifica se a conta autenticada é administradora antes de aceitar alterações.
 
-A escolha da disciplina e o texto da busca são guardados somente enquanto a página está aberta. Ao atualizar o navegador, o site volta ao catálogo. Em uma evolução futura, React Router pode criar endereços próprios para cada disciplina.
+## Como as partes se conectam
 
-## Estrutura do projeto
+    Navegador
+      → index.html
+      → src/main.jsx inicia React e BrowserRouter
+      → src/App.jsx escolhe a rota
+           → /      abre pages/PublicPortal.jsx
+           → /admin abre pages/AdminPage.jsx
 
-```text
-.
-├── index.html                    # primeira página aberta pelo navegador
-├── package.json                  # tecnologias e comandos disponíveis
-├── vite.config.ts                # configuração do Vite
-├── src/
-│   ├── main.jsx                  # ponto de partida do React
-│   ├── App.jsx                   # seleção, busca e materiais visíveis
-│   ├── styles.css                # aparência e responsividade
-│   ├── Contador.jsx              # exemplo de estudo; não aparece no portal
-│   ├── components/
-│   │   ├── CourseCatalog.jsx     # catálogo de disciplinas
-│   │   ├── Header.jsx            # topo, navegação e busca
-│   │   ├── PostCard.jsx          # card de cada material
-│   │   └── Footer.jsx            # rodapé
-│   └── data/
-│       ├── courses.js            # cadastro das disciplinas
-│       └── lessons.js            # materiais de Cálculo Numérico
-└── dist/                         # versão pronta para publicação, gerada automaticamente
-```
+Na área pública, PublicPortal busca disciplinas e materiais publicados. Na área administrativa, AdminPage verifica login e permissão antes de abrir os formulários.
 
-> O nome `lessons.js` vem de uma versão anterior. Apesar do nome, ele exporta os materiais usados por Cálculo Numérico.
+## Estrutura de arquivos
+
+    .
+    ├── .env.example                    modelo das variáveis locais
+    ├── .gitignore                      protege arquivos locais com chaves
+    ├── index.html                       página inicial do navegador
+    ├── package.json                     dependências e comandos
+    ├── render.yaml                      configuração do Render
+    ├── vite.config.ts                   configuração do Vite
+    ├── src/
+    │   ├── main.jsx                     inicia React e BrowserRouter
+    │   ├── App.jsx                      declara as rotas / e /admin
+    │   ├── styles.css                   aparência pública e administrativa
+    │   ├── lib/
+    │   │   └── supabase.js              cria a conexão com Supabase
+    │   ├── data/
+    │   │   ├── portalApi.js             lê, grava, atualiza e envia arquivos
+    │   │   ├── courses.js               arquivo legado, não usado hoje
+    │   │   └── lessons.js               referência do conteúdo anterior
+    │   ├── pages/
+    │   │   ├── PublicPortal.jsx         área pública
+    │   │   └── AdminPage.jsx            login e administração de materiais
+    │   └── components/
+    │       ├── CourseCatalog.jsx        catálogo inicial
+    │       ├── Header.jsx               cabeçalho e busca
+    │       ├── PostCard.jsx             card de material
+    │       ├── AdminCourseManager.jsx   CRUD de disciplinas
+    │       └── Footer.jsx               rodapé
+    ├── supabase/
+    │   └── 02_seed_calculo_numerico.sql migração dos materiais iniciais
+    └── dist/                            versão compilada e gerada pelo build
+
+Os arquivos courses.js e lessons.js não são mais a fonte oficial do portal. Eles permanecem apenas como referência histórica. A fonte oficial agora é o banco Supabase.
 
 ## Quem chama quem
 
 | Arquivo | Responsabilidade | É chamado por |
 |---|---|---|
-| `index.html` | Oferece o espaço onde o site será desenhado. | Navegador |
-| `src/main.jsx` | Inicia o React e chama o componente principal. | `index.html` |
-| `src/App.jsx` | Controla disciplina escolhida, busca e materiais. | `main.jsx` |
-| `src/data/courses.js` | Guarda os dados de cada disciplina. | `App.jsx` e `CourseCatalog.jsx` |
-| `src/data/lessons.js` | Guarda os materiais de Cálculo Numérico. | `courses.js` |
-| `CourseCatalog.jsx` | Desenha a seleção inicial. | `App.jsx` |
-| `Header.jsx` | Desenha o cabeçalho e recebe a busca. | `App.jsx` |
-| `PostCard.jsx` | Desenha um material individual. | `App.jsx` |
-| `Footer.jsx` | Desenha o rodapé. | `App.jsx` |
-| `styles.css` | Aplica o visual a todos os componentes. | `main.jsx` |
+| index.html | Oferece o espaço chamado root. | Navegador |
+| main.jsx | Inicia React e a navegação. | index.html |
+| App.jsx | Escolhe a página pelo endereço. | main.jsx |
+| PublicPortal.jsx | Catálogo, busca e cards públicos. | App.jsx |
+| AdminPage.jsx | Login e formulário de materiais. | App.jsx |
+| AdminCourseManager.jsx | Formulário e lista de disciplinas. | AdminPage.jsx |
+| portalApi.js | Comunicação com banco e Storage. | Páginas administrativas e públicas |
+| supabase.js | Cria cliente de conexão. | portalApi.js e AdminPage.jsx |
+| styles.css | Visual do portal. | main.jsx |
 
-## Onde editar as disciplinas
+## Banco de dados
 
-Abra [src/data/courses.js](./src/data/courses.js). Cada bloco entre chaves representa uma disciplina:
+O Supabase usa PostgreSQL. O portal utiliza três tabelas principais.
 
-```js
-{
-  id: "calculo-diferencial-integral-1",
-  title: "Cálculo Diferencial e Integral I",
-  code: "CDI I",
-  workload: "67 horas",
-  institution: "Instituto Federal do Paraná · Campus Ivaiporã",
-  teacher: "Nome do docente",
-  description: "Curso e período da turma.",
-  status: "Em preparação",
-  materials: [],
-  publishedMaterialCount: 0,
-}
-```
+### courses
 
-O significado dos campos:
+Representa uma disciplina.
 
-- `id`: nome interno único, sem espaços;
-- `title`: nome grande mostrado na página;
-- `code` e `workload`: informações complementares;
-- `institution`, `teacher` e `description`: textos do cabeçalho;
-- `status`: texto no catálogo, como `Disponível` ou `Em preparação`;
-- `materials`: lista dos materiais daquela disciplina;
-- `publishedMaterialCount`: quantos itens da lista ficam visíveis.
+| Campo | Significado |
+|---|---|
+| id | Identificador interno único. |
+| slug | Nome técnico único derivado do título. |
+| title | Nome mostrado no site. |
+| code | Código da disciplina. |
+| workload | Carga horária ou informação complementar. |
+| institution | Instituição mostrada no cabeçalho. |
+| teacher | Docente responsável. |
+| description | Curso, turma ou período. |
+| status | Disponível ou Em preparação. |
+| position | Ordem no catálogo. |
+| created_at e updated_at | Datas técnicas. |
 
-### Como incluir uma nova disciplina
+### materials
 
-1. Abra `src/data/courses.js`.
-2. Copie um objeto de disciplina existente.
-3. Altere os textos e escolha um `id` novo.
-4. Para iniciar sem conteúdo, mantenha `materials: []` e `publishedMaterialCount: 0`.
-5. Salve. Com o servidor de desenvolvimento aberto, o navegador costuma atualizar automaticamente.
+Representa um card/material.
 
-Quando uma disciplina tiver muitos materiais, o ideal é criar um arquivo em `src/data/` só para ela e importá-lo em `courses.js`.
+| Campo | Significado |
+|---|---|
+| id | Identificador interno único. |
+| course_id | Disciplina à qual pertence. |
+| title | Título do card. |
+| summary | Resumo apresentado ao estudante. |
+| area | Tema do material. |
+| note | Observação complementar. |
+| material_url | Link externo ou URL pública do PDF. |
+| storage_path | Caminho interno do PDF no Storage. |
+| status | draft ou published. |
+| position | Número e ordem do material. |
+| published_at | Data de publicação. |
+| created_by | Administrador que criou o registro. |
+| created_at e updated_at | Datas técnicas. |
 
-## Onde editar materiais
+### admin_users
 
-Os materiais atuais de Cálculo Numérico estão em [src/data/lessons.js](./src/data/lessons.js). Cada objeto cria um card:
+Representa quem possui permissão administrativa.
 
-```js
-{
-  title: "Sistemas de Numeração",
-  summary: "Bases numéricas, conversões e representação de valores.",
-  area: "Fundamentos",
-  note: "Revisão conceitual para preparar os próximos materiais.",
-  postUrl: "https://...", // opcional
-}
-```
+| Campo | Significado |
+|---|---|
+| user_id | Identificador do usuário do Supabase Auth. |
+| role | Atualmente, admin. |
+| created_at | Data do vínculo administrativo. |
 
-- `title`: título do card;
-- `summary`: explicação curta;
-- `area`: tema ou unidade;
-- `note`: observação exibida em itálico;
-- `postUrl`: link para PDF, Google Drive ou outro material. Se estiver ausente, o card mostra “Material em preparação”.
+A tabela auth.users é administrada pelo Supabase e não deve ser editada manualmente.
 
-### Como liberar mais materiais
+## Segurança
 
-No início de `lessons.js`, há uma linha semelhante a:
+As políticas no Supabase são a segurança real do portal.
 
-```js
-export const publishedPostCount = 1;
-```
+- Visitantes podem ler disciplinas e materiais com status published.
+- Rascunhos não são devolvidos na consulta pública.
+- Somente contas autenticadas presentes em admin_users podem criar, editar ou excluir disciplinas e materiais.
+- Somente administradores podem enviar, trocar ou remover PDFs.
+- A senha do banco e a chave service_role nunca podem aparecer no navegador, no GitHub ou no Render.
 
-Trocar para `2` libera os dois primeiros itens; trocar para `3`, os três primeiros. O último material liberado recebe o selo **Recém-liberado**. Na tela, os materiais são exibidos do mais recente para o mais antigo.
+Variáveis com prefixo VITE_ chegam ao navegador. Elas não são segredos; a proteção depende das políticas RLS configuradas no Supabase.
 
-## Tecnologias usadas
+## PDFs
 
-| Tecnologia | Em palavras simples | Papel no portal |
-|---|---|---|
-| HTML | Estrutura de uma página web. | `index.html` abre o site. |
-| CSS | Regras de aparência. | Define layout, cores, fontes e celular. |
-| JavaScript | Linguagem que dá comportamento à página. | Controla seleção, busca e links. |
-| React | Biblioteca para interfaces em componentes. | Monta as telas a partir dos dados. |
-| React DOM | Ponte entre React e navegador. | Coloca React dentro da página. |
-| Vite | Ferramenta de desenvolvimento e compilação. | Executa e gera o projeto. |
-| npm | Gerenciador de pacotes do Node.js. | Instala dependências e executa comandos. |
+Os PDFs ficam no bucket público chamado course-materials.
 
-O projeto também possui `lucide-react` instalado para o arquivo de estudo `Contador.jsx`; ele não é usado na interface atual.
+O bucket é público porque os alunos precisam abrir os materiais. Mesmo assim, somente administradores possuem autorização para enviar, alterar ou apagar arquivos.
 
-### Tipografia e visual
+No formulário administrativo, é possível informar um link externo ou escolher um PDF. Se um PDF for enviado, ele substitui o link manual. Ao substituir um PDF, o sistema remove o arquivo anterior. Ao excluir um material, o sistema tenta remover o PDF correspondente.
 
-`styles.css` carrega **STIX Two Text**, uma fonte adequada a texto acadêmico e notação científica, e usa **IBM Plex Mono** em etiquetas técnicas. As fontes vêm do Google Fonts quando há internet; sem conexão, o navegador usa fontes de reserva.
+## Como usar o painel administrativo
 
-## Como executar no computador
+1. Acesse /admin.
+2. Entre com a conta criada em Supabase Authentication.
+3. Para cadastrar uma disciplina, use a seção Cadastrar disciplina.
+4. Para cadastrar um material:
+   - escolha a disciplina;
+   - preencha título, resumo, área e observação;
+   - informe um link ou envie um PDF;
+   - escolha Rascunho ou Publicado;
+   - salve.
+5. Use Editar para alterar qualquer informação.
+6. Use Excluir para apagar um registro.
 
-É necessário ter [Node.js](https://nodejs.org/) instalado. O projeto indica Node.js 22.
+Atenção: excluir uma disciplina também exclui todos os materiais vinculados a ela.
 
-Na pasta do projeto, abra um terminal e execute:
+## Configurar o projeto em outro computador
 
-```bash
-npm install
-npm run dev
-```
+### Instalar dependências
 
-O terminal mostrará um endereço parecido com:
+É necessário ter Node.js 22 ou compatível.
 
-```text
-http://localhost:5173
-```
+    npm install
 
-Abra esse endereço no navegador. Para encerrar o servidor, pressione `Ctrl + C` no terminal.
+### Criar configuração local
 
-## Como gerar a versão para publicação
+    cp .env.example .env.local
 
-```bash
-npm run build
-```
+Preencha .env.local com os dados do projeto Supabase:
 
-Esse comando gera a pasta `dist/`, que contém arquivos otimizados para publicar. Não edite essa pasta manualmente: ela é recriada a cada compilação.
+    VITE_SUPABASE_URL=https://seu-projeto.supabase.co
+    VITE_SUPABASE_PUBLISHABLE_KEY=sua_chave_publicavel
 
-Para visualizar a versão compilada localmente:
+Os valores ficam em Supabase, em Project Settings e API Keys. Não envie .env.local ao GitHub.
 
-```bash
-npm run start
-```
+### Executar localmente
+
+    npm run dev
+
+O terminal costuma exibir http://localhost:5173.
+
+### Compilar para produção
+
+    npm run build
+
+Esse comando cria ou atualiza a pasta dist. Não edite essa pasta manualmente.
+
+### Pré-visualizar a versão compilada
+
+    npm run start
+
+## Configuração inicial do Supabase
+
+Para recriar a infraestrutura do zero:
+
+1. crie um projeto Supabase;
+2. crie as tabelas courses, materials e admin_users;
+3. ative RLS nas tabelas;
+4. crie políticas de leitura pública e escrita somente para administradores;
+5. crie o usuário docente em Authentication e registre seu user_id em admin_users;
+6. crie o bucket público course-materials;
+7. crie as políticas de Storage para administradores;
+8. adicione a coluna storage_path em materials;
+9. execute o arquivo [02_seed_calculo_numerico.sql](./supabase/02_seed_calculo_numerico.sql) uma única vez, se desejar importar os materiais iniciais.
+
+O arquivo de seed insere 37 materiais de Cálculo Numérico: os três primeiros como publicados e os demais como rascunhos. Não execute duas vezes, pois materiais duplicados serão criados.
 
 ## Publicação no Render
 
-O arquivo `render.yaml` já prepara o projeto para uma hospedagem como site
-estático no Render. Ele executa `npm ci && npm run build`, publica a pasta
-`dist/` e reescreve URLs como `/admin` para `index.html`, permitindo que o
-React Router mostre a página correta.
+O arquivo [render.yaml](./render.yaml) prepara um site estático no Render.
 
-No painel do Render, as duas variáveis abaixo precisam ser cadastradas no
-serviço antes do primeiro deploy:
+Ele executa npm ci seguido de npm run build, publica a pasta dist e faz uma reescrita de todas as rotas para index.html. Essa reescrita é necessária para que /admin funcione mesmo quando a pessoa abre esse endereço diretamente.
 
-```text
-VITE_SUPABASE_URL
-VITE_SUPABASE_PUBLISHABLE_KEY
-```
+Passos:
 
-Use os mesmos valores que existem no `.env.local` do computador. Nunca use no
-Render a senha do banco, a chave `service_role` ou outras chaves secretas.
+1. envie alterações para a branch main no GitHub;
+2. crie ou sincronize o Blueprint no Render;
+3. informe VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY;
+4. aguarde o deploy;
+5. teste / e /admin.
+
+O nome do Blueprint, o nome do repositório e a URL do serviço podem ser diferentes. A URL onrender.com é definida pelo nome do serviço estático no Render.
 
 ## Limites atuais e próximos passos
 
-Esta versão ainda não possui banco de dados, login, painel de cadastro, URLs próprias por disciplina, páginas internas de leitura ou acompanhamento de progresso do estudante.
+O portal já possui o ciclo essencial de publicação. Melhorias possíveis:
 
-Uma evolução natural seria:
+- recuperação de senha;
+- mais de um administrador, com diferentes papéis;
+- reordenação visual de disciplinas e materiais;
+- páginas próprias de leitura;
+- indicadores de acesso ou progresso;
+- histórico de alterações;
+- domínio próprio;
+- testes automatizados.
 
-1. cadastrar materiais de CDI I;
-2. criar páginas e endereços próprios com React Router;
-3. criar formulário para cadastrar materiais;
-4. trocar arquivos locais por API e banco de dados;
-5. adicionar login para restringir a edição.
+## Resumo
 
-## Resumo final
-
-`main.jsx` inicia o React; `App.jsx` decide qual tela mostrar; `courses.js` informa as disciplinas; os arquivos de dados fornecem os materiais; os componentes desenham as partes da tela; e `styles.css` cria a identidade visual acadêmica.
+React monta as telas. Supabase guarda e protege dados, login e PDFs. Render publica o site. Estudantes acessam apenas materiais publicados, e o docente administra o conteúdo em /admin.

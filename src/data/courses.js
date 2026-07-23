@@ -20,7 +20,7 @@ export const courses = [
     code: "CDI I",
     workload: "Em preparação",
     institution: "Instituto Federal do Paraná · Campus Ivaiporã",
-    teacher: "",
+    teacher: "Prof. Dr. Vinícius Machado Martinez",
     description:
       "Engenharia Agronômica 2026.2",
     status: "Em preparação",

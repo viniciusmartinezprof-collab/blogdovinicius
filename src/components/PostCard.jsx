@@ -22,10 +22,10 @@ function PostCard({ post }) {
       onClick={handleOpenPost}
       onKeyDown={handleKeyDown}
     >
-      {post.isNewestPublished ? <span className="lesson-badge">Novo</span> : null}
+      {post.isNewestPublished ? <span className="lesson-badge">Recém-liberado</span> : null}
 
       <div className="lesson-card-top">
-        <span className="lesson-week">{post.postLabel}</span>
+        <span className="lesson-week">{post.materialLabel}</span>
         <span className={`lesson-status${post.isPublished ? " is-open" : ""}`}>
           {post.statusLabel}
         </span>
@@ -41,7 +41,7 @@ function PostCard({ post }) {
       </div>
 
       <span className={`lesson-action${isClickable ? "" : " is-muted"}`}>
-        {isClickable ? "Ler publicação" : "Conteúdo em preparação"}
+        {isClickable ? "Acessar material" : "Material em preparação"}
       </span>
     </article>
   );

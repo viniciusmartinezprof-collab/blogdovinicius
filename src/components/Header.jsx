@@ -1,26 +1,26 @@
-function Header({ search, onSearchChange }) {
+function Header({ course, search, onSearchChange, onBackToCourses }) {
   return (
     <header className="site-header">
       <div>
-        <p className="eyebrow">
-          Vinícius Machado Martinez · notas e aprendizados
-        </p>
-        <h1>Blog pessoal</h1>
-        <p className="hero-text">
-          Um espaço para registrar ideias, estudos e materiais que valem a pena
-          guardar e compartilhar.
-        </p>
-      </div>    
+        <p className="eyebrow">{course.institution}</p>
+        <p className="course-code">{course.code} · {course.workload}</p>
+        <h1>{course.title}</h1>
+        <p className="hero-text">{course.description}</p>
+        <p className="course-signature">{course.teacher}</p>
+      </div>
       <nav className="main-nav" aria-label="Navegação principal">
-        <a href="#publicacoes">Publicações</a>
+        <button className="course-switcher" type="button" onClick={onBackToCourses}>
+          ← Disciplinas
+        </button>
+        <a href="#publicacoes">Materiais</a>
       </nav>
 
       <label className="header-search" htmlFor="search-posts">
-        Pesquise por publicação, assunto ou área:
+        Pesquise por material, assunto ou área:
         <input
           id="search-posts"
           type="text"
-          placeholder="Ex.: ponto flutuante, estudo, fundamentos..."
+          placeholder="Ex.: ponto flutuante, bisseção, fundamentos..."
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
         />

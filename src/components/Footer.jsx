@@ -1,7 +1,7 @@
 function Footer() {
   return (
     <footer className="site-footer">
-      <p>Blog pessoal construído e evoluído com React.</p>
+      <p>Mentoria do FCB. Mentorado: Vinícius M. Martinez</p>
     </footer>
   );
 }

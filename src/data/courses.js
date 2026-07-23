@@ -4,10 +4,10 @@ export const courses = [
   {
     id: "calculo-numerico",
     title: "Cálculo Numérico",
-    code: "MAT-067",
-    workload: "67 horas",
+    code: "20262.9.IVA1001.244.1N",
+    workload: "67 horas/80 aulas",
     institution: "Instituto Federal do Paraná · Campus Ivaiporã",
-    teacher: "Prof. Vinícius Machado Martinez",
+    teacher: "Prof. Dr. Vinícius Machado Martinez",
     description:
       "Licenciatura em Física 2026.2",
     status: "Disponível",
@@ -20,7 +20,7 @@ export const courses = [
     code: "CDI I",
     workload: "Em preparação",
     institution: "Instituto Federal do Paraná · Campus Ivaiporã",
-    teacher: "Prof. Vinícius Machado Martinez",
+    teacher: "",
     description:
       "Engenharia Agronômica 2026.2",
     status: "Em preparação",

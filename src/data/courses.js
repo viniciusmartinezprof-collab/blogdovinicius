@@ -27,4 +27,5 @@ export const courses = [
     materials: [],
     publishedMaterialCount: 0,
   },
+  
 ];

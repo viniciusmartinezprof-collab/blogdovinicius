@@ -1,5 +1,5 @@
 // Quantidade de publicações já visíveis no blog.
-export const publishedPostCount = 2;
+export const publishedPostCount = 3;
 
 // Campo opcional:
 // postUrl: "https://..."

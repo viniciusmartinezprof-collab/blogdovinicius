@@ -11,9 +11,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.8",
     "lucide-react": "^1.21.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-router-dom": "^7.18.1",
     "vite": "^8.0.16"
   },
   "volta": {

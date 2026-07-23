@@ -288,6 +288,17 @@ button, input, select, textarea { font: inherit; }
 .empty-materials > span { color: #a2732a; font-size: 3rem; }
 .empty-materials h4 { margin: 3px 0 7px; color: #1b304b; font-size: 1.45rem; }
 .empty-materials p { margin: 0; }
+.portal-inline-error { margin: 0 0 16px; color: #8f2727; }
+.portal-state {
+  display: grid;
+  min-height: 65vh;
+  place-content: center;
+  color: #263f5b;
+  text-align: center;
+}
+.portal-state span { color: #a2732a; font-size: 4rem; }
+.portal-state h1 { max-width: 600px; margin: 0; font-size: clamp(2rem, 5vw, 3.6rem); }
+.portal-state p { margin: 14px 0 0; color: #536075; }
 
 .course-catalog { min-height: 580px; }
 .catalog-header {
@@ -341,6 +352,83 @@ button, input, select, textarea { font: inherit; }
   text-transform: uppercase;
 }
 .course-card button:hover { background: #a2732a; border-color: #a2732a; }
+.admin-login-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+.admin-login-card, .admin-panel {
+  width: min(100%, 620px);
+  padding: 32px;
+  border: 1px solid #9aa2a5;
+  border-top: 5px solid #263f5b;
+  background: #fffdf7;
+  box-shadow: 5px 6px 0 rgba(53, 65, 79, 0.12);
+}
+.admin-login-card h1, .admin-panel h2 { margin: 0; color: #17263d; font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.05; }
+.admin-login-card > p:not(.eyebrow) { color: #536075; }
+.admin-form { display: grid; gap: 16px; margin-top: 25px; }
+.admin-form label { display: grid; gap: 6px; color: #263f5b; font-weight: 600; }
+.admin-form input, .admin-form textarea, .admin-form select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #aeb7be;
+  border-radius: 2px;
+  color: #17263d;
+  background: #fff;
+  font-weight: 400;
+}
+.admin-form input[type="file"] { padding: 8px; }
+.admin-field-help { color: #68768a; font-size: 0.8rem; font-weight: 400; }
+.admin-form input:focus, .admin-form textarea:focus, .admin-form select:focus { outline: 3px solid rgba(162, 115, 42, 0.22); border-color: #a2732a; }
+.admin-form button, .admin-login-card > button, .admin-header button {
+  padding: 11px 14px;
+  border: 1px solid #263f5b;
+  border-radius: 2px;
+  color: #fffdf7;
+  background: #263f5b;
+  cursor: pointer;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.admin-form button:hover, .admin-login-card > button:hover, .admin-header button:hover { background: #a2732a; border-color: #a2732a; }
+.admin-form button:disabled { cursor: wait; opacity: 0.7; }
+.admin-form-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.admin-secondary-button { color: #263f5b !important; background: transparent !important; }
+.admin-error { margin: 0; color: #982d2d; }
+.admin-success { margin: 0; color: #256040; }
+.admin-back-link { display: inline-block; margin-top: 24px; color: #38516d; text-decoration: underline; }
+.admin-shell { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 42px 0 60px; }
+.admin-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding-bottom: 24px; border-bottom: 4px double #9b7a42; }
+.admin-header h1 { margin: 0; color: #17263d; font-size: clamp(2.2rem, 5vw, 4rem); line-height: 0.95; }
+.admin-header p:not(.eyebrow) { margin: 12px 0 0; color: #536075; }
+.admin-header-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.admin-header-actions a { padding: 10px 12px; border: 1px solid #263f5b; color: #263f5b; font-family: "IBM Plex Mono", monospace; font-size: 0.76rem; }
+.admin-content { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr); gap: 24px; margin-top: 28px; align-items: start; }
+.admin-panel { width: 100%; }
+.admin-panel-heading { margin-bottom: 18px; }
+.admin-panel-heading h2 { font-size: 1.8rem; }
+.admin-form-row { display: grid; grid-template-columns: 1fr 0.75fr; gap: 14px; }
+.admin-material-list { display: grid; gap: 9px; padding: 0; margin: 0; list-style: none; }
+.admin-material-list li { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid #dedbd2; }
+.admin-material-list li > span { color: #8a5e22; font-family: "IBM Plex Mono", monospace; font-size: 0.75rem; }
+.admin-material-list strong, .admin-material-list small { display: block; }
+.admin-material-list small { color: #68768a; }
+.admin-material-list em { padding: 3px 5px; color: #66543b; background: #ede7da; font-family: "IBM Plex Mono", monospace; font-size: 0.65rem; font-style: normal; text-transform: uppercase; }
+.admin-material-list em.is-published { color: #254f3b; background: #e1ecdf; }
+.admin-course-manager { grid-column: 1 / -1; }
+.admin-course-list { display: grid; gap: 9px; padding: 0; margin: 26px 0 0; list-style: none; }
+.admin-course-list li { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 0; border-bottom: 1px solid #dedbd2; }
+.admin-course-list strong, .admin-course-list small { display: block; }
+.admin-course-list small { color: #68768a; }
+.admin-list-actions { display: flex; gap: 6px; }
+.admin-list-actions button { padding: 5px 7px; border: 1px solid #64748b; color: #334155; background: #fff; cursor: pointer; font-family: "IBM Plex Mono", monospace; font-size: 0.65rem; text-transform: uppercase; }
+.admin-list-actions button:hover { color: #fff; background: #38516d; }
+.admin-list-actions .admin-delete-button { color: #8f2727; border-color: #b87a7a; }
+.admin-list-actions .admin-delete-button:hover { background: #8f2727; color: #fff; }
 .site-footer {
   margin-top: 45px;
   padding-top: 18px;
@@ -363,4 +451,11 @@ button, input, select, textarea { font: inherit; }
   .posts-section { margin-top: 22px; }
   .lesson-card { min-height: auto; }
   .catalog-header { padding-top: 26px; }
+  .admin-shell { width: min(100% - 20px, 1180px); padding-top: 24px; }
+  .admin-header { display: grid; }
+  .admin-content { grid-template-columns: 1fr; }
+  .admin-login-card, .admin-panel { padding: 23px; }
+  .admin-form-row { grid-template-columns: 1fr; }
+  .admin-material-list li { grid-template-columns: auto 1fr auto; }
+  .admin-list-actions { grid-column: 2 / -1; }
 }

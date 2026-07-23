@@ -209,6 +209,24 @@ Para visualizar a versão compilada localmente:
 npm run start
 ```
 
+## Publicação no Render
+
+O arquivo `render.yaml` já prepara o projeto para uma hospedagem como site
+estático no Render. Ele executa `npm ci && npm run build`, publica a pasta
+`dist/` e reescreve URLs como `/admin` para `index.html`, permitindo que o
+React Router mostre a página correta.
+
+No painel do Render, as duas variáveis abaixo precisam ser cadastradas no
+serviço antes do primeiro deploy:
+
+```text
+VITE_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY
+```
+
+Use os mesmos valores que existem no `.env.local` do computador. Nunca use no
+Render a senha do banco, a chave `service_role` ou outras chaves secretas.
+
 ## Limites atuais e próximos passos
 
 Esta versão ainda não possui banco de dados, login, painel de cadastro, URLs próprias por disciplina, páginas internas de leitura ou acompanhamento de progresso do estudante.

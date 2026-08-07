@@ -55,7 +55,7 @@ function PublicPortal() {
   }, [selectedCourseId]);
 
   if (isLoadingCourses) {
-    return <PortalState title="Carregando disciplinas…" />;
+    return <PortalState title="Carregando disciplinas brabas…" />;
   }
 
   if (errorMessage && !selectedCourse) {

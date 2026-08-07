@@ -78,7 +78,6 @@ Na área pública, PublicPortal busca disciplinas e materiais publicados. Na ár
     ├── .gitignore                      protege arquivos locais com chaves
     ├── index.html                       página inicial do navegador
     ├── package.json                     dependências e comandos
-    ├── render.yaml                      configuração do Render
     ├── vite.config.ts                   configuração do Vite
     ├── src/
     │   ├── main.jsx                     inicia React e BrowserRouter
@@ -262,19 +261,17 @@ O arquivo de seed insere 37 materiais de Cálculo Numérico: os três primeiros 
 
 ## Publicação no Render
 
-O arquivo [render.yaml](./render.yaml) prepara um site estático no Render.
+O site é publicado diretamente pelo serviço `blogdovinicius` no Render, conectado à branch `main` deste repositório. A URL pública é https://blogdovinicius.onrender.com.
 
-Ele executa npm ci seguido de npm run build, publica a pasta dist e faz uma reescrita de todas as rotas para index.html. Essa reescrita é necessária para que /admin funcione mesmo quando a pessoa abre esse endereço diretamente.
+No painel do serviço, mantenha esta configuração:
 
-Passos:
+1. tipo: Static Site;
+2. build command: `npm ci && npm run build`;
+3. publish directory: `dist`;
+4. variáveis de ambiente: `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`;
+5. rewrite de `/*` para `/index.html`, para que `/admin` abra diretamente.
 
-1. envie alterações para a branch main no GitHub;
-2. crie ou sincronize o Blueprint no Render;
-3. informe VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY;
-4. aguarde o deploy;
-5. teste / e /admin.
-
-O nome do Blueprint, o nome do repositório e a URL do serviço podem ser diferentes. A URL onrender.com é definida pelo nome do serviço estático no Render.
+Cada envio para a branch `main` dispara um novo deploy. Depois da publicação, teste `/` e `/admin` no endereço público.
 
 ## Limites atuais e próximos passos
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -36,6 +36,8 @@ const SPEEDS = [
   { label: "0,5×", delay: 1100 },
   { label: "1×", delay: 650 },
   { label: "2×", delay: 300 },
+  { label: "4×", delay: 150 },
+  { label: "8×", delay: 75 },
 ];
 
 function parseDecimal(value, fieldLabel, field) {
@@ -160,6 +162,7 @@ function FixedPointSimulatorPage() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(650);
+  const playbackRef = useRef(null);
 
   const hasIterations = run.iterations.length > 0;
   const canPlay = run.iterations.length > 1;
@@ -190,7 +193,7 @@ function FixedPointSimulatorPage() {
       setActiveIndex((current) => Math.min(current + 1, lastIndex));
     }, speed);
     return () => window.clearTimeout(timer);
-  }, [isAtEnd, isPlaying, lastIndex, speed]);
+  }, [activeIndex, isAtEnd, isPlaying, lastIndex, speed]);
 
   const progress = lastIndex === 0 ? 100 : (activeIndex / lastIndex) * 100;
 
@@ -199,15 +202,23 @@ function FixedPointSimulatorPage() {
     if (formError) setFormError(null);
   }
 
-  function executeSimulation(nextInputs = inputs, autoplay = true) {
+  function executeSimulation(nextInputs = inputs, scrollToPlayback = false) {
     try {
       const normalized = normalizeInputs(nextInputs);
       const result = runFixedPoint(normalized);
       setRun(result);
       setActiveIndex(0);
       setFormError(null);
-      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-      setIsPlaying(autoplay && !reduceMotion && result.iterations.length > 1);
+      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+      setIsPlaying(false);
+      if (scrollToPlayback) {
+        window.requestAnimationFrame(() => {
+          playbackRef.current?.scrollIntoView?.({
+            behavior: reduceMotion ? "auto" : "smooth",
+            block: "start",
+          });
+        });
+      }
     } catch (error) {
       setIsPlaying(false);
       setFormError({ field: error.field || "expression", message: error.message });
@@ -216,7 +227,7 @@ function FixedPointSimulatorPage() {
 
   function handleSubmit(event) {
     event.preventDefault();
-    executeSimulation();
+    executeSimulation(inputs, true);
   }
 
   function loadExample(example) {
@@ -431,18 +442,7 @@ function FixedPointSimulatorPage() {
             </div>
           </div>
 
-          <div className="fixed-point-workspace bisection-workspace">
-            <div className="fixed-point-visual-panel bisection-visual-panel">
-              <div className="fixed-point-panel-label bisection-panel-label">
-                <span>Diagrama de teia + histórico</span>
-                <code>g(x) = {run.expression}</code>
-              </div>
-              <FixedPointPlot run={visualRun} activeIndex={activeIndex} />
-            </div>
-            <FixedPointTerminal run={run} activeIndex={activeIndex} />
-          </div>
-
-          <div className="fixed-point-playback bisection-playback">
+          <div ref={playbackRef} className="fixed-point-playback bisection-playback">
             <div className="fixed-point-controls bisection-controls" aria-label="Controles da simulação">
               <button type="button" onClick={() => selectIteration(0)} disabled={activeIndex === 0} title="Reiniciar">
                 <RotateCcw size={17} aria-hidden="true" /><span className="sr-only">Reiniciar</span>
@@ -490,6 +490,17 @@ function FixedPointSimulatorPage() {
                 {SPEEDS.map((option) => <option key={option.delay} value={option.delay}>{option.label}</option>)}
               </select>
             </label>
+          </div>
+
+          <div className="fixed-point-workspace bisection-workspace">
+            <div className="fixed-point-visual-panel bisection-visual-panel">
+              <div className="fixed-point-panel-label bisection-panel-label">
+                <span>Diagrama de teia + histórico</span>
+                <code>g(x) = {run.expression}</code>
+              </div>
+              <FixedPointPlot run={visualRun} activeIndex={activeIndex} />
+            </div>
+            <FixedPointTerminal run={run} activeIndex={activeIndex} />
           </div>
 
           {isAtEnd ? (

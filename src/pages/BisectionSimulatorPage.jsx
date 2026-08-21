@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -36,6 +36,8 @@ const SPEEDS = [
   { label: "0,5×", delay: 1100 },
   { label: "1×", delay: 650 },
   { label: "2×", delay: 300 },
+  { label: "4×", delay: 150 },
+  { label: "8×", delay: 75 },
 ];
 
 function parseDecimal(value, fieldLabel) {
@@ -158,6 +160,7 @@ function BisectionSimulatorPage() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(650);
+  const playbackRef = useRef(null);
 
   const hasIterations = run.iterations.length > 0;
   const canPlay = run.iterations.length > 1;
@@ -193,7 +196,7 @@ function BisectionSimulatorPage() {
     }, speed);
 
     return () => window.clearTimeout(timer);
-  }, [isAtEnd, isPlaying, lastIndex, speed]);
+  }, [activeIndex, isAtEnd, isPlaying, lastIndex, speed]);
 
   const progress = lastIndex === 0 ? 100 : (activeIndex / lastIndex) * 100;
   const intervalReduction = useMemo(() => {
@@ -208,16 +211,24 @@ function BisectionSimulatorPage() {
     if (formError) setFormError(null);
   }
 
-  function executeSimulation(nextInputs = inputs, autoplay = true) {
+  function executeSimulation(nextInputs = inputs, scrollToResults = false) {
     try {
       const normalized = normalizeInputs(nextInputs);
       const result = runBisection(normalized);
       setRun(result);
       setActiveIndex(0);
       setFormError(null);
+      setIsPlaying(false);
 
-      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-      setIsPlaying(autoplay && !reduceMotion && result.iterations.length > 1);
+      if (scrollToResults) {
+        const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+        window.requestAnimationFrame(() => {
+          playbackRef.current?.scrollIntoView?.({
+            behavior: reduceMotion ? "auto" : "smooth",
+            block: "start",
+          });
+        });
+      }
     } catch (error) {
       setIsPlaying(false);
       const field = error.code === "NO_SIGN_CHANGE" ? "interval" : error.field || "expression";
@@ -227,7 +238,7 @@ function BisectionSimulatorPage() {
 
   function handleSubmit(event) {
     event.preventDefault();
-    executeSimulation();
+    executeSimulation(inputs, true);
   }
 
   function loadExample(example) {
@@ -422,18 +433,7 @@ function BisectionSimulatorPage() {
             </div>
           </div>
 
-          <div className="bisection-workspace">
-            <div className="bisection-visual-panel">
-              <div className="bisection-panel-label">
-                <span>Gráfico da iteração</span>
-                <code>f(x) = {run.expression}</code>
-              </div>
-              <BisectionPlot run={visualRun} activeIndex={activeIndex} />
-            </div>
-            <IterationTerminal run={run} activeIndex={activeIndex} />
-          </div>
-
-          <div className="bisection-playback">
+          <div className="bisection-playback" ref={playbackRef}>
             <div className="bisection-controls" aria-label="Controles da simulação">
               <button type="button" onClick={() => selectIteration(0)} disabled={activeIndex === 0} title="Reiniciar">
                 <RotateCcw size={17} aria-hidden="true" /><span className="sr-only">Reiniciar</span>
@@ -485,6 +485,17 @@ function BisectionSimulatorPage() {
                 {SPEEDS.map((option) => <option key={option.delay} value={option.delay}>{option.label}</option>)}
               </select>
             </label>
+          </div>
+
+          <div className="bisection-workspace">
+            <div className="bisection-visual-panel">
+              <div className="bisection-panel-label">
+                <span>Gráfico da iteração</span>
+                <code>f(x) = {run.expression}</code>
+              </div>
+              <BisectionPlot run={visualRun} activeIndex={activeIndex} />
+            </div>
+            <IterationTerminal run={run} activeIndex={activeIndex} />
           </div>
 
           {isAtEnd ? (

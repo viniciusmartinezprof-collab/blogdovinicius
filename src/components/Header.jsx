@@ -1,4 +1,5 @@
 import MathRibbon from "./MathRibbon.jsx";
+import { Link } from "react-router-dom";
 
 function Header({ course, search, onSearchChange, onBackToCourses }) {
   return (
@@ -12,6 +13,7 @@ function Header({ course, search, onSearchChange, onBackToCourses }) {
         <p className="course-signature">{course.teacher}</p>
       </div>
       <nav className="main-nav" aria-label="Navegação principal">
+        <Link to="/">Início</Link>
         <button className="course-switcher" type="button" onClick={onBackToCourses}>
           ← Disciplinas
         </button>

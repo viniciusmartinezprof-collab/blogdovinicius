@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import CourseCatalog from "../components/CourseCatalog.jsx";
 import Footer from "../components/Footer.jsx";
 import Header from "../components/Header.jsx";
@@ -54,18 +55,20 @@ function PublicPortal() {
     loadMaterials();
   }, [selectedCourseId]);
 
-  if (isLoadingCourses) {
-    return <PortalState title="Carregando disciplinas brabas…" />;
-  }
-
-  if (errorMessage && !selectedCourse) {
-    return <PortalState title={errorMessage} isError />;
-  }
-
   if (!selectedCourse) {
     return (
-      <div className="page-shell">
-        <CourseCatalog courses={courses} onSelectCourse={setSelectedCourseId} />
+      <div className="page-shell disciplines-page">
+        <nav className="portal-section-back" aria-label="Retorno">
+          <Link to="/">← Página inicial</Link>
+        </nav>
+        <main className="disciplines-content">
+          <CourseCatalog
+            courses={courses}
+            isLoading={isLoadingCourses}
+            errorMessage={errorMessage}
+            onSelectCourse={setSelectedCourseId}
+          />
+        </main>
         <Footer />
       </div>
     );
@@ -97,13 +100,14 @@ function PublicPortal() {
     });
 
   return (
-    <div className="page-shell">
+    <div className="page-shell disciplines-page">
       <Header
         course={selectedCourse}
         search={search}
         onSearchChange={setSearch}
         onBackToCourses={() => {
           setSearch("");
+          setErrorMessage("");
           setSelectedCourseId(null);
         }}
       />

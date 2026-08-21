@@ -12,6 +12,10 @@ Para estudantes:
 - mostra somente materiais publicados;
 - permite buscar materiais por título, resumo, área ou número;
 - abre links externos e PDFs em outra aba;
+- oferece o Espaço Poincaré, um catálogo de simuladores matemáticos;
+- simula o método da bisseção com console, gráfico e histórico de intervalos;
+- simula o método da falsa posição com secantes, intervalos retidos, console e histórico completo;
+- simula o método do ponto fixo com teia de aranha, órbita das aproximações e diagnóstico de convergência ou divergência;
 - adapta o layout para celular.
 
 Para o administrador:
@@ -33,7 +37,8 @@ Imagine que o portal é uma biblioteca.
 - A área /admin é o balcão reservado ao docente.
 
     Docente → /admin → login → cria ou altera conteúdos → Supabase guarda
-    Estudante → área pública → React consulta Supabase → vê itens publicados
+    Estudante → home → disciplinas → React consulta Supabase → vê itens publicados
+    Estudante → home → Espaço Poincaré → usa simuladores no navegador
 
 ## Tecnologias
 
@@ -43,7 +48,7 @@ Imagine que o portal é uma biblioteca.
 | CSS | Regras de aparência. | Define identidade acadêmica e celular. |
 | JavaScript | Linguagem de comportamento. | Busca, formulários, login e banco. |
 | React | Biblioteca de telas reutilizáveis. | Monta catálogo, cards e administração. |
-| React Router | Navegação sem recarregar. | Define / e /admin. |
+| React Router | Navegação sem recarregar. | Separa a home, disciplinas, simuladores e administração. |
 | Vite | Ferramenta de desenvolvimento. | Executa e compila o projeto. |
 | Supabase | Backend pronto para uso. | Banco, autenticação, regras e PDFs. |
 | PostgreSQL | Banco relacional. | Guarda disciplinas e materiais. |
@@ -55,7 +60,12 @@ Imagine que o portal é uma biblioteca.
 
 | Endereço | Público | Finalidade |
 |---|---:|---|
-| / | Sim | Catálogo de disciplinas e materiais liberados. |
+| / | Sim | Página inicial com acesso às duas áreas do portal. |
+| /disciplinas | Sim | Catálogo de disciplinas e materiais liberados. |
+| /espaco-poincare | Sim | Catálogo de simuladores matemáticos. |
+| /espaco-poincare/bissecao | Sim | Simulador interativo do método da bisseção. |
+| /espaco-poincare/falsa-posicao | Sim | Simulador interativo do método da falsa posição. |
+| /espaco-poincare/ponto-fixo | Sim | Simulador interativo do método do ponto fixo. |
 | /admin | Não | Login e painel administrativo. |
 
 A rota /admin aparece no navegador, mas a proteção não depende apenas de escondê-la. O Supabase verifica se a conta autenticada é administradora antes de aceitar alterações.
@@ -66,10 +76,15 @@ A rota /admin aparece no navegador, mas a proteção não depende apenas de esco
       → index.html
       → src/main.jsx inicia React e BrowserRouter
       → src/App.jsx escolhe a rota
-           → /      abre pages/PublicPortal.jsx
+           → /      abre pages/HomePage.jsx
+           → /disciplinas abre pages/PublicPortal.jsx
+           → /espaco-poincare abre pages/PoincareHubPage.jsx
+           → /espaco-poincare/bissecao abre pages/BisectionSimulatorPage.jsx
+           → /espaco-poincare/falsa-posicao abre pages/FalsePositionSimulatorPage.jsx
+           → /espaco-poincare/ponto-fixo abre pages/FixedPointSimulatorPage.jsx
            → /admin abre pages/AdminPage.jsx
 
-Na área pública, PublicPortal busca disciplinas e materiais publicados. Na área administrativa, AdminPage verifica login e permissão antes de abrir os formulários.
+Na área pública, PublicPortal busca disciplinas e materiais publicados. No Espaço Poincaré, cada página recebe os parâmetros do estudante, chama seu motor numérico e transforma as iterações em console, gráfico, controles de reprodução e tabela. Na área administrativa, AdminPage verifica login e permissão antes de abrir os formulários.
 
 ## Estrutura de arquivos
 
@@ -81,19 +96,37 @@ Na área pública, PublicPortal busca disciplinas e materiais publicados. Na ár
     ├── vite.config.ts                   configuração do Vite
     ├── src/
     │   ├── main.jsx                     inicia React e BrowserRouter
-    │   ├── App.jsx                      declara as rotas / e /admin
+    │   ├── App.jsx                      declara as rotas do portal
     │   ├── styles.css                   aparência pública e administrativa
     │   ├── lib/
-    │   │   └── supabase.js              cria a conexão com Supabase
+    │   │   ├── supabase.js              cria a conexão com Supabase
+    │   │   ├── mathExpression.js        interpreta expressões matemáticas seguras
+    │   │   ├── bisection.js             calcula e registra as iterações da bisseção
+    │   │   ├── falsePosition.js         calcula secantes e intervalos da falsa posição
+    │   │   ├── fixedPoint.js            calcula a órbita e diagnostica o ponto fixo
+    │   │   └── *.test.js                testa o interpretador e os três métodos
     │   ├── data/
     │   │   ├── portalApi.js             lê, grava, atualiza e envia arquivos
     │   │   ├── courses.js               arquivo legado, não usado hoje
     │   │   └── lessons.js               referência do conteúdo anterior
     │   ├── pages/
-    │   │   ├── PublicPortal.jsx         área pública
+    │   │   ├── HomePage.jsx             entrada para as duas áreas do portal
+    │   │   ├── PublicPortal.jsx         disciplinas e materiais públicos
+    │   │   ├── PoincareHubPage.jsx      catálogo do Espaço Poincaré
+    │   │   ├── BisectionSimulatorPage.jsx laboratório interativo da bisseção
+    │   │   ├── FalsePositionSimulatorPage.jsx laboratório interativo da falsa posição
+    │   │   ├── FixedPointSimulatorPage.jsx laboratório interativo do ponto fixo
     │   │   └── AdminPage.jsx            login e administração de materiais
     │   └── components/
     │       ├── CourseCatalog.jsx        catálogo inicial
+    │       ├── PoincareSpace.jsx        catálogo de simuladores do Espaço Poincaré
+    │       ├── poincare/                gráficos e terminais dos três simuladores
+    │       │   ├── BisectionPlot.jsx    curva e intervalos da bisseção
+    │       │   ├── IterationTerminal.jsx console de iterações da bisseção
+    │       │   ├── FalsePositionPlot.jsx curva, secante e intervalo retido
+    │       │   ├── FalsePositionTerminal.jsx console da falsa posição
+    │       │   ├── FixedPointPlot.jsx   curvas y = g(x), y = x e teia de aranha
+    │       │   └── FixedPointTerminal.jsx console da órbita do ponto fixo
     │       ├── Header.jsx               cabeçalho e busca
     │       ├── PostCard.jsx             card de material
     │       ├── AdminCourseManager.jsx   CRUD de disciplinas
@@ -111,7 +144,14 @@ Os arquivos courses.js e lessons.js não são mais a fonte oficial do portal. El
 | index.html | Oferece o espaço chamado root. | Navegador |
 | main.jsx | Inicia React e a navegação. | index.html |
 | App.jsx | Escolhe a página pelo endereço. | main.jsx |
+| HomePage.jsx | Apresenta os dois caminhos de entrada do portal. | App.jsx |
 | PublicPortal.jsx | Catálogo, busca e cards públicos. | App.jsx |
+| PoincareHubPage.jsx | Apresenta o catálogo de simuladores. | App.jsx |
+| BisectionSimulatorPage.jsx | Executa a experiência interativa da bisseção. | App.jsx |
+| FalsePositionSimulatorPage.jsx | Coordena parâmetros, reprodução, gráfico, console e tabela da falsa posição. | App.jsx |
+| FixedPointSimulatorPage.jsx | Coordena a órbita, a teia de aranha e o diagnóstico do ponto fixo. | App.jsx |
+| bisection.js, falsePosition.js e fixedPoint.js | Validam os dados, executam os métodos numéricos e registram cada iteração. | Páginas dos simuladores |
+| componentes em poincare/ | Representam visualmente as iterações em gráficos SVG e consoles didáticos. | Páginas dos simuladores |
 | AdminPage.jsx | Login e formulário de materiais. | App.jsx |
 | AdminCourseManager.jsx | Formulário e lista de disciplinas. | AdminPage.jsx |
 | portalApi.js | Comunicação com banco e Storage. | Páginas administrativas e públicas |
@@ -238,6 +278,12 @@ O terminal costuma exibir http://localhost:5173.
     npm run build
 
 Esse comando cria ou atualiza a pasta dist. Não edite essa pasta manualmente.
+
+### Executar os testes matemáticos
+
+    npm test
+
+Os testes cobrem o interpretador de funções, as validações, os principais critérios de parada dos três métodos e a detecção de divergência do ponto fixo.
 
 ### Pré-visualizar a versão compilada
 

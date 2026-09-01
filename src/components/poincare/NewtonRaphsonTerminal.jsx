@@ -1,14 +1,11 @@
 import { useEffect, useRef } from "react";
 
 const COLUMNS = [
-  { label: "it", value: (step) => String(step.iteration ?? "—") },
-  { label: "x_n", value: (step) => formatNumber(step.xCurrent) },
-  { label: "f(x_n)", value: (step) => formatNumber(step.fCurrent) },
-  { label: "f'(x_n)*", value: (step) => formatNumber(step.derivativeEstimate) },
-  { label: "correção", value: (step) => formatNumber(step.correction) },
-  { label: "x_n+1", value: (step) => formatNumber(step.xNext) },
-  { label: "f(x_n+1)", value: (step) => formatNumber(step.fNext) },
-  { label: "|Δx|", value: (step) => formatNumber(step.stepError) },
+  { label: "Iteração", value: (row) => String(row.iteration ?? "—") },
+  { label: "x_n", value: (row) => formatNumber(row.x) },
+  { label: "|x_n-x_n-1|", value: (row) => formatNumber(row.delta) },
+  { label: "|f(x_n)|", value: (row) => formatNumber(row.residual) },
+  { label: "Stop?", value: (row) => (row.stop ? "sim" : "não") },
 ];
 
 function finite(value) {
@@ -19,12 +16,7 @@ function finite(value) {
 
 function formatNumber(value, significantDigits = 8) {
   const number = finite(value);
-  if (number === null) {
-    if (value === Infinity) return "+∞";
-    if (value === -Infinity) return "−∞";
-    if (Number.isNaN(Number(value)) && value !== null && value !== undefined) return "NaN";
-    return "—";
-  }
+  if (number === null) return "—";
   if (Object.is(number, -0) || number === 0) return "0";
 
   const magnitude = Math.abs(number);
@@ -43,12 +35,12 @@ function normalizeReason(reason) {
   return String(reason ?? "").trim().toLowerCase().replace(/[_\s]+/g, "-");
 }
 
-function buildTable(visibleIterations, allIterations) {
-  const visibleRows = visibleIterations.map((step) => COLUMNS.map((column) => column.value(step)));
-  const sizingRows = allIterations.map((step) => COLUMNS.map((column) => column.value(step)));
+function buildTable(visibleRows, allRows) {
+  const visibleCells = visibleRows.map((row) => COLUMNS.map((column) => column.value(row)));
+  const sizingCells = allRows.map((row) => COLUMNS.map((column) => column.value(row)));
   const widths = COLUMNS.map((column, columnIndex) => Math.max(
     column.label.length,
-    ...sizingRows.map((row) => row[columnIndex].length),
+    ...sizingCells.map((row) => row[columnIndex].length),
   ));
   const align = (cells) => cells
     .map((cell, columnIndex) => cell.padStart(widths[columnIndex]))
@@ -57,104 +49,81 @@ function buildTable(visibleIterations, allIterations) {
   return {
     header: align(COLUMNS.map((column) => column.label)),
     divider: widths.map((width) => "─".repeat(width)).join("──┼──"),
-    rows: visibleRows.map(align),
+    rows: visibleCells.map(align),
   };
 }
 
-function describeTangent(step) {
-  if (!step) return null;
+function describeTangent(row, previousRow) {
+  if (!row || row.iteration === 0 || !previousRow) return null;
+  const derivative = finite(row.derivativeEstimate);
+  const previousX = finite(row.previousX);
+  const previousValue = finite(previousRow.functionValue);
 
-  const derivative = finite(step.derivativeEstimate);
-  if (derivative === null) {
-    return "Não foi possível estimar f′(xₙ); portanto, não há tangente numérica segura para construir.";
-  }
-  if (derivative === 0) {
-    return `Em xₙ = ${formatNumber(step.xCurrent)}, a derivada numérica é zero: a tangente é horizontal e não fornece uma nova interseção com o eixo x.`;
-  }
-
-  const next = finite(step.xNext);
-  if (next === null) {
-    return `A tangente em xₙ = ${formatNumber(step.xCurrent)} tem inclinação ${formatNumber(derivative)}, mas sua correção não produziu uma interseção numérica finita.`;
+  if (derivative === null || previousX === null || previousValue === null) {
+    return "A atualização foi registrada, mas a reta tangente não pôde ser reconstruída numericamente.";
   }
 
-  return `Tangente: y = ${formatNumber(step.fCurrent)} + ${formatNumber(derivative)}·(x − ${formatNumber(step.xCurrent)}). Em y = 0, ela intercepta o eixo x em xₙ₊₁ = ${formatNumber(step.xNext)}.`;
+  return `Tangente que levou a x_${row.iteration}: y = ${formatNumber(previousValue)} + ${formatNumber(derivative)}·(x − ${formatNumber(previousX)}). Em y = 0, x_${row.iteration} = ${formatNumber(row.x)}.`;
 }
 
-function describeValidation(run, firstStep) {
-  const reason = normalizeReason(run?.reason);
-
-  if (!firstStep && reason === "exact-root") {
-    return `O chute inicial já satisfaz f(x₀) = 0 em x₀ = ${formatNumber(run?.initialX)}; nenhuma tangente é necessária.`;
-  }
-  if (!firstStep && reason === "function-value") {
-    return `O chute inicial já satisfaz |f(x₀)| ≤ ε em x₀ = ${formatNumber(run?.initialX)}.`;
-  }
-
-  return "Estado inicial aceito. Construindo a tangente em xₙ e usando sua interseção com o eixo x como xₙ₊₁.";
+function describeDecision(run, row) {
+  if (!row) return null;
+  const criterion1 = row.criterion1Met === null
+    ? "indisponível em n = 0"
+    : row.criterion1Met ? "sim" : "não";
+  const criterion2 = row.criterion2Met === null
+    ? "indisponível"
+    : row.criterion2Met ? "sim" : "não";
+  const mode = run.stopMode === "all" ? "E" : "OU";
+  return `C₁: |xₙ−xₙ₋₁| < ε₁? ${criterion1} · C₂: |f(xₙ)| < ε₂? ${criterion2} · modo ${mode} · Stop? ${row.stop ? "sim" : "não"}.`;
 }
 
-function describeResult(run, lastStep) {
+function describeValidation(run, firstRow) {
   const reason = normalizeReason(run?.reason);
-  const iterationCount = run?.iterations?.length ?? 0;
-  const iterationLabel = iterationCount === 1 ? "iteração" : "iterações";
-  const root = formatNumber(run?.root ?? lastStep?.xNext ?? lastStep?.xCurrent, 11);
-  const fRoot = formatNumber(run?.fRoot ?? lastStep?.fNext ?? lastStep?.fCurrent, 8);
+  if (reason === "exact-root" && firstRow?.iteration === 0) {
+    return `A linha 0 já é uma raiz exata: x₀ = ${formatNumber(firstRow.x)} e f(x₀) = 0.`;
+  }
+  if (reason === "residual-tolerance" && firstRow?.stop) {
+    return `No modo OU, a linha 0 pode encerrar pelo resíduo: |f(x₀)| = ${formatNumber(firstRow.residual)} < ε₂.`;
+  }
+  return "Linha 0 registrada com o chute inicial. A variação C₁ só fica disponível depois da primeira atualização.";
+}
+
+function describeResult(run, lastRow) {
+  const reason = normalizeReason(run?.reason);
+  const root = formatNumber(run?.root ?? lastRow?.x, 11);
+  const residual = formatNumber(lastRow?.residual, 8);
+  const lastIteration = lastRow?.iteration ?? 0;
 
   switch (reason) {
     case "exact-root":
-      return {
-        warning: false,
-        text: `Raiz exata encontrada após ${iterationCount} ${iterationLabel}: x = ${root} e f(x) = 0.`,
-      };
-    case "function-value":
-      return {
-        warning: false,
-        text: `Critério |f(x)| ≤ ε satisfeito após ${iterationCount} ${iterationLabel}: x ≈ ${root}, com f(x) ≈ ${fRoot}.`,
-      };
+      return { warning: false, text: `Raiz exata na iteração ${lastIteration}: x = ${root} e f(x) = 0.` };
+    case "both-criteria":
+      return { warning: false, text: `C₁ e C₂ satisfeitos estritamente na iteração ${lastIteration}: x ≈ ${root}, |f(x)| ≈ ${residual}.` };
+    case "step-tolerance":
+      return { warning: false, text: `No modo OU, C₁ foi satisfeito na iteração ${lastIteration}: |xₙ−xₙ₋₁| < ε₁.` };
+    case "residual-tolerance":
+      return { warning: false, text: `No modo OU, C₂ foi satisfeito na iteração ${lastIteration}: |f(xₙ)| < ε₂.` };
     case "zero-derivative":
-      return {
-        warning: true,
-        text: `Método interrompido em x = ${root}: f′(x) ≈ 0, então a tangente horizontal não determina um próximo ponto. f(x) ≈ ${fRoot}.`,
-      };
+      return { warning: true, text: `Método interrompido em x = ${root}: f′(x) ≈ 0 e a tangente não determina uma nova aproximação. Stop? permanece não.` };
     case "derivative-unavailable":
-      return {
-        warning: true,
-        text: `Não foi possível estimar f′ em x = ${root}, nem por diferença central nem unilateral. A iteração foi interrompida com f(x) ≈ ${fRoot}.`,
-      };
+      return { warning: true, text: `Não foi possível estimar f′ em x = ${root} por diferença central ou unilateral. Stop? permanece não.` };
     case "function-unavailable":
-      return {
-        warning: true,
-        text: `A tangente levou a xₙ₊₁ = ${formatNumber(lastStep?.xNext)}, onde f(x) não está definida. Último ponto avaliável: xₙ = ${formatNumber(lastStep?.xCurrent)}, f(xₙ) = ${formatNumber(lastStep?.fCurrent)}.`,
-      };
+      return { warning: true, text: `A tangente levou a x_${lastIteration} = ${root}, onde f(x) não está definida. A linha é mantida com Stop? não.` };
     case "numeric-failure":
-      return {
-        warning: true,
-        text: `Falha numérica ao calcular a correção f(x)/f′(x) ou a nova interseção. Último ponto finito: x ≈ ${root}, f(x) ≈ ${fRoot}.`,
-      };
+      return { warning: true, text: `Falha numérica ao calcular a correção ou a nova aproximação. Último ponto finito: x ≈ ${root}; Stop? não.` };
     case "machine-precision":
-      return {
-        warning: true,
-        text: `A precisão da máquina fez xₙ₊₁ = xₙ antes de atingir a tolerância. Último ponto: x ≈ ${root}, f(x) ≈ ${fRoot}.`,
-      };
+      return { warning: true, text: `A sequência estagnou na precisão da máquina antes do critério selecionado. Último x ≈ ${root}; Stop? não.` };
     case "divergence":
-      return {
-        warning: true,
-        text: `Divergência detectada após ${iterationCount} ${iterationLabel}: a aproximação cresceu além do limite numérico seguro. Último x ≈ ${root}.`,
-      };
+      return { warning: true, text: `Divergência detectada na iteração ${lastIteration}. Último x ≈ ${root}; Stop? não.` };
     case "cycle":
-      return {
-        warning: true,
-        text: `Ciclo detectado após ${iterationCount} ${iterationLabel}: a sequência voltou a uma aproximação anterior. Último x ≈ ${root}, f(x) ≈ ${fRoot}.`,
-      };
+      return { warning: true, text: `Ciclo detectado na iteração ${lastIteration}. Último x ≈ ${root}; Stop? não.` };
     case "max-iterations":
-      return {
-        warning: true,
-        text: `Limite de ${run?.maxIterations ?? iterationCount} ${iterationLabel} atingido sem satisfazer |f(x)| ≤ ε. Último x ≈ ${root}, f(x) ≈ ${fRoot}.`,
-      };
+      return { warning: true, text: `Limite de ${run?.maxIterations ?? lastIteration} atualizações atingido sem satisfazer o modo ${run?.stopMode === "all" ? "E" : "OU"}. Último x ≈ ${root}; Stop? não.` };
     default:
       return run?.converged
-        ? { warning: false, text: `Convergência alcançada: x ≈ ${root}, com f(x) ≈ ${fRoot}.` }
-        : { warning: true, text: `Execução encerrada sem convergência. Último x ≈ ${root}, f(x) ≈ ${fRoot}.` };
+        ? { warning: false, text: `Convergência alcançada: x ≈ ${root}, |f(x)| ≈ ${residual}.` }
+        : { warning: true, text: `Execução encerrada sem convergência. Último x ≈ ${root}; Stop? não.` };
   }
 }
 
@@ -162,21 +131,15 @@ function NewtonRaphsonTerminal({ run, activeIndex }) {
   const bodyRef = useRef(null);
   const iterations = Array.isArray(run?.iterations) ? run.iterations : [];
   const requestedIndex = Math.trunc(finite(activeIndex) ?? 0);
-  const visibleCount = requestedIndex < 0
-    ? 0
-    : Math.min(requestedIndex + 1, iterations.length);
+  const visibleCount = requestedIndex < 0 ? 0 : Math.min(requestedIndex + 1, iterations.length);
   const visibleIterations = iterations.slice(0, visibleCount);
-  const activeStep = visibleIterations.at(-1);
-  const isAtEnd = Boolean(run) && (iterations.length === 0 || visibleCount === iterations.length);
+  const activeRow = visibleIterations.at(-1);
+  const previousRow = activeRow?.iteration > 0 ? iterations[activeRow.iteration - 1] : null;
+  const isAtEnd = Boolean(run) && visibleCount === iterations.length;
   const table = buildTable(visibleIterations, iterations);
-  const tangent = describeTangent(activeStep);
+  const tangent = describeTangent(activeRow, previousRow);
+  const decision = describeDecision(run, activeRow);
   const result = isAtEnd ? describeResult(run, iterations.at(-1)) : null;
-  const activeDerivative = finite(activeStep?.derivativeEstimate);
-  const tangentIsWarning = activeStep && (
-    activeDerivative === null ||
-    activeDerivative === 0 ||
-    finite(activeStep.xNext) === null
-  );
 
   useEffect(() => {
     const body = bodyRef.current;
@@ -208,7 +171,7 @@ function NewtonRaphsonTerminal({ run, activeIndex }) {
         {!run ? (
           <p className="newton-terminal-line iteration-terminal-line is-muted">
             <span className="newton-terminal-prompt iteration-terminal-prompt" aria-hidden="true">$</span>{" "}
-            Configure f(x) e o chute x₀ para iniciar.
+            Configure f(x), x₀ e as duas precisões para iniciar.
           </p>
         ) : (
           <>
@@ -219,20 +182,15 @@ function NewtonRaphsonTerminal({ run, activeIndex }) {
             <p className="newton-terminal-line iteration-terminal-line is-command">
               <span className="newton-terminal-prompt iteration-terminal-prompt" aria-hidden="true">&gt;&gt;&gt;</span>{" "}
               <code>
-                newton_raphson(f, x0={formatNumber(run.initialX)}, tol={formatNumber(run.tolerance)}, max_iter={run.maxIterations ?? "—"})
+                newton_raphson(f, x0={formatNumber(run.initialX)}, eps1={formatNumber(run.epsilon1)}, eps2={formatNumber(run.epsilon2)}, mode=&quot;{run.stopMode}&quot;, max_iter={run.maxIterations ?? "—"})
               </code>
             </p>
             <p className="newton-terminal-line iteration-terminal-line is-validation">
-              <span aria-hidden="true">✓</span>{" "}
-              {describeValidation(run, iterations[0])}
+              <span aria-hidden="true">✓</span>{" "}{describeValidation(run, iterations[0])}
             </p>
             <p className="newton-terminal-line iteration-terminal-line is-muted">
               <span aria-hidden="true">#</span>{" "}
-              f′(xₙ)* ≈ [f(xₙ + h) − f(xₙ − h)] / (2h), com h adaptado à escala de xₙ.
-            </p>
-            <p className="newton-terminal-line iteration-terminal-line is-muted">
-              <span aria-hidden="true">#</span>{" "}
-              Se um lado sair do domínio, usa-se diferença unilateral; xₙ₊₁ = xₙ − f(xₙ)/f′(xₙ)*.
+              f′ é estimada por diferenças finitas com extrapolação de Richardson e passo adaptado à escala.
             </p>
 
             <div
@@ -250,17 +208,14 @@ function NewtonRaphsonTerminal({ run, activeIndex }) {
             </div>
 
             {tangent ? (
-              <p
-                className={`newton-terminal-line iteration-terminal-line ${tangentIsWarning ? "is-warning" : "is-decision"}`}
-                key={`tangent-${activeStep?.iteration}`}
-              >
+              <p className="newton-terminal-line iteration-terminal-line is-decision" key={`tangent-${activeRow?.iteration}`}>
                 <span aria-hidden="true">→</span>{" "}{tangent}
               </p>
             ) : null}
 
-            {activeStep && finite(activeStep.xNext) !== null && !isAtEnd ? (
-              <p className="newton-terminal-line iteration-terminal-line is-muted">
-                correção = {formatNumber(activeStep.correction)} · |Δx| = {formatNumber(activeStep.stepError)} · |f(xₙ₊₁)| = {formatNumber(Math.abs(activeStep.fNext))}
+            {decision ? (
+              <p className="newton-terminal-line iteration-terminal-line is-decision" key={`decision-${activeRow?.iteration}`}>
+                <span aria-hidden="true">?</span>{" "}{decision}
               </p>
             ) : null}
 

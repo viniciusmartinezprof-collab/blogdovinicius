@@ -205,7 +205,7 @@ function EmptyPlot({ titleId, descriptionId }) {
       style={{ display: "block", width: "100%", height: "auto" }}
     >
       <title id={titleId}>Gráfico da falsa posição aguardando dados</title>
-      <desc id={descriptionId}>Execute uma simulação para visualizar a função, as secantes e os intervalos retidos.</desc>
+      <desc id={descriptionId}>Execute uma simulação para visualizar a função, as secantes e os intervalos exibidos.</desc>
       <rect x="0.5" y="0.5" width={WIDTH - 1} height={HEIGHT - 1} fill={COLORS.background} stroke={COLORS.border} />
       <line x1={MARGIN.left} x2={WIDTH - MARGIN.right} y1={HEIGHT / 2} y2={HEIGHT / 2} stroke={COLORS.axis} opacity="0.45" />
       <text x={WIDTH / 2} y={HEIGHT / 2 + 46} fill={COLORS.muted} fontFamily="IBM Plex Mono, monospace" fontSize="15" textAnchor="middle">
@@ -265,7 +265,7 @@ function FalsePositionPlot({ run, activeIndex }) {
   const yAxisX = xMinimum <= 0 && xMaximum >= 0 ? xScale(0) : MARGIN.left;
   const intervalLeft = Math.min(a, b);
   const intervalRight = Math.max(a, b);
-  const iterationLabel = currentStep.iteration ?? currentIndex + 1;
+  const iterationLabel = currentStep.iteration ?? currentIndex;
   const expression = String(run?.expression || "f(x)");
   const visibleHistory = iterations.slice(0, currentIndex + 1);
   const historyGap = visibleHistory.length <= 1
@@ -302,7 +302,7 @@ function FalsePositionPlot({ run, activeIndex }) {
         <title id={plotTitleId}>Método da falsa posição, iteração {iterationLabel}</title>
         <desc id={plotDescriptionId}>
           Gráfico de {expression}. A secante liga ({formatNumber(a)}, {formatNumber(fA)}) a ({formatNumber(b)}, {formatNumber(fB)})
-          e cruza o eixo x em c igual a {formatNumber(estimate)}, onde f(c) vale {formatNumber(fEstimate)}.
+          e cruza o eixo x em x_n igual a {formatNumber(estimate)}, onde f(x_n) vale {formatNumber(fEstimate)}.
         </desc>
         <defs>
           <clipPath id={clipId}>
@@ -318,9 +318,9 @@ function FalsePositionPlot({ run, activeIndex }) {
           <line x1={MARGIN.left + 178} x2={MARGIN.left + 201} y1="24" y2="24" stroke={COLORS.secant} strokeWidth="2.8" />
           <text x={MARGIN.left + 209} y="28" fill={COLORS.ink}>secante</text>
           <rect x={MARGIN.left + 329} y="19" width="9" height="9" fill={COLORS.estimate} transform={`rotate(45 ${MARGIN.left + 333.5} 23.5)`} />
-          <text x={MARGIN.left + 346} y="28" fill={COLORS.ink}>cₙ = {formatNumber(estimate, 6)}</text>
+          <text x={MARGIN.left + 346} y="28" fill={COLORS.ink}>xₙ = {formatNumber(estimate, 6)}</text>
           <text x={MARGIN.left} y="51" fill={COLORS.muted}>
-            iteração {iterationLabel} · |f(cₙ)| = {formatNumber(Math.abs(fEstimate), 5)} · {currentStep.iteration === 1 ? "|b − a|" : "|Δc|"} = {formatNumber(currentStep.errorEstimate, 5)}
+            iteração {iterationLabel} · |f(xₙ)| = {formatNumber(currentStep.residual ?? Math.abs(fEstimate), 5)} · |b − a| = {formatNumber(currentStep.intervalWidth, 5)}
           </text>
         </g>
 
@@ -387,7 +387,7 @@ function FalsePositionPlot({ run, activeIndex }) {
             strokeWidth="3"
             textAnchor="middle"
           >
-            cₙ
+            xₙ
           </text>
         </g>
 
@@ -426,14 +426,14 @@ function FalsePositionPlot({ run, activeIndex }) {
         >
           <title id={historyTitleId}>Histórico da falsa posição até a iteração {iterationLabel}</title>
           <desc id={historyDescriptionId}>
-            {visibleHistory.length} intervalos no domínio inicial fixo. Os losangos mostram as estimativas produzidas pelas secantes.
+            {visibleHistory.length} intervalos exibidos no domínio inicial fixo. Os losangos mostram as estimativas produzidas pelas secantes.
           </desc>
           <rect width={HISTORY_WIDTH} height={historyHeight} fill={COLORS.background} />
           <text x={HISTORY_MARGIN.left} y="25" fill={COLORS.ink} fontFamily="IBM Plex Mono, Courier New, monospace" fontSize="12" fontWeight="500">
-            INTERVALOS RETIDOS + TRAJETÓRIA DE cₙ
+            INTERVALOS EXIBIDOS + TRAJETÓRIA DE xₙ
           </text>
           <text x={HISTORY_MARGIN.left} y="43" fill={COLORS.muted} fontFamily="IBM Plex Mono, Courier New, monospace" fontSize="9.5">
-            domínio inicial fixo · compare posição e largura em cada passo
+            domínio inicial fixo · cada faixa corresponde à linha da tabela
           </text>
 
           <line x1={historyScale(initialA)} x2={historyScale(initialB)} y1={HISTORY_MARGIN.top - 7} y2={HISTORY_MARGIN.top - 7} stroke={COLORS.axis} opacity="0.38" />
@@ -446,10 +446,10 @@ function FalsePositionPlot({ run, activeIndex }) {
 
           {visibleHistory.map((step, index) => {
             const y = HISTORY_MARGIN.top + index * historyGap;
-            const retainedA = finite(step.nextA) ?? finite(step.a) ?? initialA;
-            const retainedB = finite(step.nextB) ?? finite(step.b) ?? initialB;
-            const leftX = historyScale(Math.min(retainedA, retainedB));
-            const rightX = historyScale(Math.max(retainedA, retainedB));
+            const displayedA = finite(step.a) ?? initialA;
+            const displayedB = finite(step.b) ?? initialB;
+            const leftX = historyScale(Math.min(displayedA, displayedB));
+            const rightX = historyScale(Math.max(displayedA, displayedB));
             const estimateX = historyScale(finite(step.estimate) ?? step.a);
             const isCurrent = index === visibleHistory.length - 1;
             const showLabel = index % historyLabelStride === 0 || isCurrent;

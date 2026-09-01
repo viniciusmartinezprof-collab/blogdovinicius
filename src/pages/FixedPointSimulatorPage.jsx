@@ -19,17 +19,44 @@ import FixedPointTerminal from "../components/poincare/FixedPointTerminal.jsx";
 import { runFixedPoint } from "../lib/fixedPoint.js";
 
 const DEFAULT_INPUTS = {
-  expression: "cos(x)",
+  functionExpression: "cos(x) - x",
+  iterationExpression: "cos(x)",
   x0: "0.5",
-  tolerance: "0.000001",
+  epsilon1: "0.000001",
+  epsilon2: "0.000001",
+  stopMode: "all",
   maxIterations: "80",
 };
 
 const EXAMPLES = [
-  { label: "cos(x)", expression: "cos(x)", x0: "0.5", maxIterations: "80" },
-  { label: "√2 babilônico", expression: "(x + 2 / x) / 2", x0: "1", maxIterations: "30" },
-  { label: "Cúbica", expression: "cbrt(2 * x + 5)", x0: "2", maxIterations: "60" },
-  { label: "Ver divergência", expression: "2 * x + 1", x0: "0", maxIterations: "30" },
+  {
+    label: "cos(x)",
+    functionExpression: "cos(x) - x",
+    iterationExpression: "cos(x)",
+    x0: "0.5",
+    maxIterations: "80",
+  },
+  {
+    label: "√2 babilônico",
+    functionExpression: "x^2 - 2",
+    iterationExpression: "(x + 2 / x) / 2",
+    x0: "1",
+    maxIterations: "30",
+  },
+  {
+    label: "Cúbica",
+    functionExpression: "x^3 - 2 * x - 5",
+    iterationExpression: "cbrt(2 * x + 5)",
+    x0: "2",
+    maxIterations: "60",
+  },
+  {
+    label: "Ver divergência",
+    functionExpression: "x + 1",
+    iterationExpression: "2 * x + 1",
+    x0: "0",
+    maxIterations: "30",
+  },
 ];
 
 const SPEEDS = [
@@ -52,28 +79,54 @@ function parseDecimal(value, fieldLabel, field) {
 }
 
 function normalizeInputs(inputs) {
-  const expression = String(inputs.expression).trim();
-  if (!expression) {
+  const functionExpression = String(inputs.functionExpression).trim();
+  if (!functionExpression) {
+    const error = new Error("Escreva a função f(x) usada para medir o resíduo.");
+    error.field = "functionExpression";
+    throw error;
+  }
+  const iterationExpression = String(inputs.iterationExpression).trim();
+  if (!iterationExpression) {
     const error = new Error("Escreva a função de iteração g(x).");
-    error.field = "expression";
+    error.field = "iterationExpression";
     throw error;
   }
 
   const x0 = parseDecimal(inputs.x0, "o chute inicial x₀", "x0");
-  const tolerance = parseDecimal(inputs.tolerance, "a tolerância", "tolerance");
+  const epsilon1 = parseDecimal(inputs.epsilon1, "a precisão ε₁", "epsilon1");
+  const epsilon2 = parseDecimal(inputs.epsilon2, "a precisão ε₂", "epsilon2");
+  const stopMode = String(inputs.stopMode || "all");
   const maxIterations = Number(inputs.maxIterations);
 
-  if (!(tolerance > 0)) {
-    const error = new Error("A tolerância precisa ser maior que zero.");
-    error.field = "tolerance";
+  if (!(epsilon1 > 0)) {
+    const error = new Error("A precisão ε₁ precisa ser maior que zero.");
+    error.field = "epsilon1";
+    throw error;
+  }
+  if (!(epsilon2 > 0)) {
+    const error = new Error("A precisão ε₂ precisa ser maior que zero.");
+    error.field = "epsilon2";
+    throw error;
+  }
+  if (stopMode !== "all" && stopMode !== "any") {
+    const error = new Error("Escolha se a parada exige ambos os critérios ou apenas um deles.");
+    error.field = "stopMode";
     throw error;
   }
   if (!Number.isInteger(maxIterations) || maxIterations < 1 || maxIterations > 200) {
-    const error = new Error("Use um máximo entre 1 e 200 iterações.");
+    const error = new Error("Use um máximo entre 1 e 200 atualizações.");
     error.field = "maxIterations";
     throw error;
   }
-  return { expression, x0, tolerance, maxIterations };
+  return {
+    functionExpression,
+    iterationExpression,
+    x0,
+    epsilon1,
+    epsilon2,
+    stopMode,
+    maxIterations,
+  };
 }
 
 function finite(value) {
@@ -95,13 +148,14 @@ function formatNumber(value, digits = 8) {
 
 function reasonLabel(reason) {
   const labels = {
-    "exact-fixed-point": "um ponto fixo exato foi encontrado",
-    "exact-root": "um ponto fixo exato foi encontrado",
-    "step-size": "o passo e o resíduo atingiram a tolerância",
-    tolerance: "o passo e o resíduo atingiram a tolerância",
+    "exact-root": "uma raiz exata de f foi encontrada",
+    "both-criteria": "as duas precisões foram atingidas",
+    "step-tolerance": "a precisão do passo foi atingida",
+    "residual-tolerance": "a precisão do resíduo foi atingida",
     divergence: "a órbita apresentou comportamento divergente",
     "machine-precision": "a precisão numérica da máquina foi alcançada",
-    "max-iterations": "o limite de iterações foi alcançado",
+    "numeric-failure": "a sequência excedeu os limites numéricos",
+    "max-iterations": "o limite de atualizações foi alcançado",
   };
   return labels[reason] || "o critério de parada foi alcançado";
 }
@@ -120,32 +174,30 @@ function contractionInfo(value) {
 function IterationTable({ run, activeIndex, onSelect }) {
   return (
     <details className="fixed-point-table-panel bisection-table-panel">
-      <summary>Consultar tabela completa ({run.iterations.length} iterações)</summary>
+      <summary>Consultar tabela completa (iterações 0 a {run.iterations.at(-1)?.iteration ?? 0})</summary>
       <div className="fixed-point-table-scroll bisection-table-scroll">
         <table>
           <thead>
             <tr>
-              <th scope="col">n</th>
+              <th scope="col">Iteração</th>
               <th scope="col">xₙ</th>
-              <th scope="col">xₙ₊₁ = g(xₙ)</th>
-              <th scope="col">|Δx|</th>
-              <th scope="col">g(xₙ₊₁) − xₙ₊₁</th>
-              <th scope="col">|g′(xₙ₊₁)|</th>
+              <th scope="col">|xₙ − xₙ₋₁|</th>
+              <th scope="col">|f(xₙ)|</th>
+              <th scope="col">Stop?</th>
             </tr>
           </thead>
           <tbody>
             {run.iterations.map((step, index) => (
-              <tr key={`${step.iteration}-${step.xNext}`} className={index === activeIndex ? "is-active" : ""}>
+              <tr key={`${step.iteration}-${step.x}`} className={index === activeIndex ? "is-active" : ""}>
                 <th scope="row">
                   <button type="button" onClick={() => onSelect(index)} aria-label={`Ver iteração ${step.iteration}`}>
                     {step.iteration}
                   </button>
                 </th>
-                <td>{formatNumber(step.xCurrent, 10)}</td>
-                <td>{formatNumber(step.xNext, 10)}</td>
-                <td>{formatNumber(step.stepError, 7)}</td>
+                <td>{formatNumber(step.x, 10)}</td>
+                <td>{formatNumber(step.delta, 7)}</td>
                 <td>{formatNumber(step.residual, 7)}</td>
-                <td>{step.derivativeEstimate == null ? "não estimada" : formatNumber(Math.abs(step.derivativeEstimate), 7)}</td>
+                <td>{step.stop ? "sim" : "não"}</td>
               </tr>
             ))}
           </tbody>
@@ -169,11 +221,15 @@ function FixedPointSimulatorPage() {
   const lastIndex = Math.max(0, run.iterations.length - 1);
   const fallbackStep = useMemo(() => ({
     iteration: 0,
-    xCurrent: run.initialX,
-    xNext: run.root ?? run.initialX,
-    stepError: 0,
+    x: run.initialX,
+    previousX: null,
+    delta: null,
+    functionValue: run.fRoot,
     residual: run.residual,
     derivativeEstimate: null,
+    criterion1Met: null,
+    criterion2Met: false,
+    stop: false,
   }), [run]);
   const activeStep = run.iterations[Math.min(activeIndex, lastIndex)] || fallbackStep;
   const visualRun = useMemo(
@@ -221,7 +277,7 @@ function FixedPointSimulatorPage() {
       }
     } catch (error) {
       setIsPlaying(false);
-      setFormError({ field: error.field || "expression", message: error.message });
+      setFormError({ field: error.field || "functionExpression", message: error.message });
     }
   }
 
@@ -259,7 +315,7 @@ function FixedPointSimulatorPage() {
         </div>
         <div className="fixed-point-header-formula poincare-header-formula" aria-hidden="true" style={{ lineHeight: 1.35 }}>
           <span>xₙ₊₁ = g(xₙ)</span>
-          <span>x* = g(x*)</span>
+          <span>f(x*) = 0</span>
         </div>
       </header>
 
@@ -274,28 +330,60 @@ function FixedPointSimulatorPage() {
           </div>
 
           <form className="fixed-point-form bisection-form" onSubmit={handleSubmit} noValidate>
-            <label className="fixed-point-function-field bisection-function-field" htmlFor="fixed-point-expression">
-              <span>Função de iteração <i>g(x)</i></span>
+            <label
+              className="fixed-point-function-field bisection-function-field"
+              htmlFor="fixed-point-function-expression"
+              style={{ gridRow: "auto" }}
+            >
+              <span>Função da equação <i>f(x)</i></span>
               <span className="fixed-point-expression-input bisection-expression-input">
-                <b aria-hidden="true">g(x) =</b>
+                <b aria-hidden="true">f(x) =</b>
                 <input
-                  id="fixed-point-expression"
-                  name="expression"
+                  id="fixed-point-function-expression"
+                  name="functionExpression"
                   type="text"
-                  value={inputs.expression}
-                  onChange={(event) => updateInput("expression", event.target.value)}
-                  aria-invalid={formError?.field === "expression"}
+                  value={inputs.functionExpression}
+                  onChange={(event) => updateInput("functionExpression", event.target.value)}
+                  aria-invalid={formError?.field === "functionExpression"}
                   aria-describedby="fixed-point-function-help fixed-point-simulator-error"
                   autoComplete="off"
                   spellCheck="false"
                 />
               </span>
               <small id="fixed-point-function-help">
-                Escreva diretamente g(x). Use x, +, −, *, /, ^; sin/sen, cos, sqrt/raiz, cbrt, exp, ln e log.
+                O resíduo será medido por |f(xₙ)|; a raiz procurada satisfaz f(x*) = 0.
               </small>
             </label>
 
-            <div className="fixed-point-form-grid bisection-form-grid">
+            <label
+              className="fixed-point-function-field bisection-function-field"
+              htmlFor="fixed-point-iteration-expression"
+              style={{ gridRow: "auto" }}
+            >
+              <span>Função de iteração <i>g(x)</i></span>
+              <span className="fixed-point-expression-input bisection-expression-input">
+                <b aria-hidden="true">g(x) =</b>
+                <input
+                  id="fixed-point-iteration-expression"
+                  name="iterationExpression"
+                  type="text"
+                  value={inputs.iterationExpression}
+                  onChange={(event) => updateInput("iterationExpression", event.target.value)}
+                  aria-invalid={formError?.field === "iterationExpression"}
+                  aria-describedby="fixed-point-iteration-help fixed-point-simulator-error"
+                  autoComplete="off"
+                  spellCheck="false"
+                />
+              </span>
+              <small id="fixed-point-iteration-help">
+                g gera xₙ₊₁. As expressões f e g devem representar a mesma equação.
+              </small>
+            </label>
+
+            <div
+              className="fixed-point-form-grid bisection-form-grid"
+              style={{ gridColumn: "1 / -1", gridTemplateColumns: "repeat(auto-fit, minmax(165px, 1fr))" }}
+            >
               <label htmlFor="fixed-point-x0">
                 <span>Chute inicial <i>x₀</i></span>
                 <input
@@ -308,20 +396,56 @@ function FixedPointSimulatorPage() {
                   aria-describedby="fixed-point-simulator-error"
                 />
               </label>
-              <label htmlFor="fixed-point-tolerance">
-                <span>Tolerância <i>ε</i></span>
+              <label htmlFor="fixed-point-epsilon1">
+                <span>Precisão do passo <i>ε₁</i></span>
                 <input
-                  id="fixed-point-tolerance"
+                  id="fixed-point-epsilon1"
                   type="text"
                   inputMode="decimal"
-                  value={inputs.tolerance}
-                  onChange={(event) => updateInput("tolerance", event.target.value)}
-                  aria-invalid={formError?.field === "tolerance"}
+                  value={inputs.epsilon1}
+                  onChange={(event) => updateInput("epsilon1", event.target.value)}
+                  aria-invalid={formError?.field === "epsilon1"}
                   aria-describedby="fixed-point-simulator-error"
                 />
               </label>
+              <label htmlFor="fixed-point-epsilon2">
+                <span>Precisão do resíduo <i>ε₂</i></span>
+                <input
+                  id="fixed-point-epsilon2"
+                  type="text"
+                  inputMode="decimal"
+                  value={inputs.epsilon2}
+                  onChange={(event) => updateInput("epsilon2", event.target.value)}
+                  aria-invalid={formError?.field === "epsilon2"}
+                  aria-describedby="fixed-point-simulator-error"
+                />
+              </label>
+              <label htmlFor="fixed-point-stop-mode">
+                <span>Critérios de parada</span>
+                <select
+                  id="fixed-point-stop-mode"
+                  value={inputs.stopMode}
+                  onChange={(event) => updateInput("stopMode", event.target.value)}
+                  aria-invalid={formError?.field === "stopMode"}
+                  aria-describedby="fixed-point-simulator-error"
+                  style={{
+                    width: "100%",
+                    minHeight: "45px",
+                    padding: "10px 12px",
+                    border: "1px solid #5a7c96",
+                    borderRadius: "1px",
+                    color: "#eff8ff",
+                    background: "#081c2d",
+                    fontFamily: "IBM Plex Mono, monospace",
+                    fontSize: ".78rem",
+                  }}
+                >
+                  <option value="all">Ambos os critérios (E)</option>
+                  <option value="any">Qualquer critério (OU)</option>
+                </select>
+              </label>
               <label htmlFor="fixed-point-max-iterations">
-                <span>Máx. de iterações</span>
+                <span>Máx. de atualizações</span>
                 <input
                   id="fixed-point-max-iterations"
                   type="number"
@@ -336,7 +460,7 @@ function FixedPointSimulatorPage() {
               </label>
             </div>
 
-            <div className="fixed-point-examples bisection-examples" aria-label="Exemplos prontos">
+            <div className="fixed-point-examples bisection-examples" aria-label="Exemplos prontos" style={{ gridColumn: "1 / -1" }}>
               <span>Carregar exemplo:</span>
               {EXAMPLES.map((example) => (
                 <button key={example.label} type="button" onClick={() => loadExample(example)}>{example.label}</button>
@@ -344,16 +468,16 @@ function FixedPointSimulatorPage() {
             </div>
 
             {formError ? (
-              <p className="fixed-point-form-error bisection-form-error" id="fixed-point-simulator-error" role="alert">
+              <p className="fixed-point-form-error bisection-form-error" id="fixed-point-simulator-error" role="alert" style={{ gridColumn: "1 / -1", gridRow: "auto" }}>
                 <TriangleAlert size={17} aria-hidden="true" /> {formError.message}
               </p>
             ) : (
-              <p className="fixed-point-form-note bisection-form-note" id="fixed-point-simulator-error">
-                A mesma equação pode gerar diferentes g(x). A escolha da forma iterativa determina se a sequência converge.
+              <p className="fixed-point-form-note bisection-form-note" id="fixed-point-simulator-error" style={{ gridColumn: "1 / -1", gridRow: "auto" }}>
+                Critérios: |xₙ − xₙ₋₁| &lt; ε₁ e |f(xₙ)| &lt; ε₂. Em n = 0, apenas o critério do resíduo está disponível.
               </p>
             )}
 
-            <button className="fixed-point-run-button bisection-run-button" type="submit">
+            <button className="fixed-point-run-button bisection-run-button" type="submit" style={{ gridColumn: "1 / -1" }}>
               <Sparkles size={17} aria-hidden="true" /> Executar simulação
             </button>
           </form>
@@ -391,15 +515,15 @@ function FixedPointSimulatorPage() {
           <div className="fixed-point-metrics bisection-metrics" aria-live="polite">
             <div>
               <span>Aproximação atual</span>
-              <strong>xₙ₊₁ ≈ {formatNumber(activeStep?.xNext ?? run.root, 10)}</strong>
+              <strong>xₙ ≈ {formatNumber(activeStep?.x ?? run.root, 10)}</strong>
             </div>
             <div>
               <span>Erro do passo</span>
-              <strong>|Δx| = {formatNumber(activeStep?.stepError, 7)}</strong>
+              <strong>|xₙ − xₙ₋₁| = {formatNumber(activeStep?.delta, 7)}</strong>
             </div>
             <div>
-              <span>Resíduo do ponto fixo</span>
-              <strong>|g(x) − x| = {formatNumber(Math.abs(activeStep?.residual), 7)}</strong>
+              <span>Resíduo da equação</span>
+              <strong>|f(xₙ)| = {formatNumber(activeStep?.residual, 7)}</strong>
             </div>
             <div>
               <span>Indicador de contração</span>
@@ -436,9 +560,11 @@ function FixedPointSimulatorPage() {
                 Teste de equilíbrio
               </span>
               <p style={{ margin: "7px 0 0", fontFamily: "IBM Plex Mono, monospace", fontSize: ".78rem" }}>
-                g(xₙ₊₁) − xₙ₊₁ = {formatNumber(activeStep?.residual, 9)}
+                f(xₙ) = {formatNumber(activeStep?.functionValue, 9)}
               </p>
-              <small style={{ color: "#94adbf" }}>Quanto mais perto de zero, mais próximo o ponto está da interseção y = g(x) com y = x.</small>
+              <small style={{ color: "#94adbf" }}>
+                C₁ {activeStep?.criterion1Met === null ? "—" : activeStep?.criterion1Met ? "✓" : "×"} · C₂ {activeStep?.criterion2Met ? "✓" : "×"} · regra {run.stopMode === "all" ? "E" : "OU"} · Stop? {activeStep?.stop ? "sim" : "não"}.
+              </small>
             </div>
           </div>
 
@@ -470,7 +596,7 @@ function FixedPointSimulatorPage() {
 
             <label className="fixed-point-timeline bisection-timeline" htmlFor="fixed-point-iteration-timeline">
               <span>
-                {hasIterations ? <>Iteração <strong>{activeStep.iteration}</strong> de {run.iterations.length}</> : <>Verificação inicial</>}
+                {hasIterations ? <>Iteração <strong>{activeStep.iteration}</strong> de {run.iterations.at(-1)?.iteration ?? 0}</> : <>Verificação inicial</>}
               </span>
               <input
                 id="fixed-point-iteration-timeline"
@@ -496,7 +622,7 @@ function FixedPointSimulatorPage() {
             <div className="fixed-point-visual-panel bisection-visual-panel">
               <div className="fixed-point-panel-label bisection-panel-label">
                 <span>Diagrama de teia + histórico</span>
-                <code>g(x) = {run.expression}</code>
+                <code>g(x) = {run.iterationExpression}</code>
               </div>
               <FixedPointPlot run={visualRun} activeIndex={activeIndex} />
             </div>
@@ -509,10 +635,10 @@ function FixedPointSimulatorPage() {
               <span>
                 <strong>
                   {run.converged
-                    ? `Ponto fixo aproximado: x* ≈ ${formatNumber(run.root, 12)}`
+                    ? `Raiz aproximada: x* ≈ ${formatNumber(run.root, 12)}`
                     : run.reason === "divergence"
                       ? "A sequência não convergiu"
-                      : "A aproximação ainda não atingiu a tolerância"}
+                      : "A aproximação ainda não atingiu a regra de parada"}
                 </strong>{" — "}{reasonLabel(run.reason)}.
               </span>
             </p>

@@ -318,7 +318,7 @@ function BisectionPlot({ run, activeIndex }) {
   const intervalWidth = Math.max(0.8, xScale(intervalRight) - intervalX);
   const xAxisY = yScale(0);
   const yAxisX = xMinimum <= 0 && xMaximum >= 0 ? xScale(0) : PLOT_MARGIN.left;
-  const iterationLabel = currentStep.iteration ?? currentIndex + 1;
+  const iterationLabel = currentStep.iteration ?? currentIndex;
   const expression = String(run?.expression || "f(x)");
   const visibleHistory = iterations.slice(0, currentIndex + 1);
   const historyRowGap = visibleHistory.length <= 1
@@ -364,7 +364,7 @@ function BisectionPlot({ run, activeIndex }) {
         <title id={plotTitleId}>Método da bisseção, iteração {iterationLabel}</title>
         <desc id={plotDescriptionId}>
           Gráfico de {expression}. Na iteração {iterationLabel}, o intervalo vai de {formatNumber(a)} a {formatNumber(b)},
-          com ponto médio {formatNumber(midpoint)} e estimativa de erro {formatNumber(currentStep.errorEstimate)}.
+          com ponto médio {formatNumber(midpoint)} e largura b menos a igual a {formatNumber(currentStep.intervalWidth)}.
         </desc>
         <defs>
           <clipPath id={clipPathId}>
@@ -397,7 +397,7 @@ function BisectionPlot({ run, activeIndex }) {
             </g>
           ))}
           <text x={PLOT_MARGIN.left} y="48" fill={COLORS.muted}>
-            iteração {iterationLabel} · erro ≤ {formatNumber(currentStep.errorEstimate, 5)}
+            iteração {iterationLabel} · b − a = {formatNumber(currentStep.intervalWidth, 5)} · Stop? {currentStep.stop ? "sim" : "não"}
           </text>
         </g>
 
@@ -577,7 +577,7 @@ function BisectionPlot({ run, activeIndex }) {
             const midpointX = historyXScale(stepMidpoint);
             const y = HISTORY_MARGIN.top + index * historyRowGap;
             const isCurrent = index === visibleHistory.length - 1;
-            const rowIteration = step?.iteration ?? index + 1;
+            const rowIteration = step?.iteration ?? index;
             const showLabel = index % historyLabelStride === 0 || isCurrent;
             const intervalStrokeWidth = isCurrent
               ? 6

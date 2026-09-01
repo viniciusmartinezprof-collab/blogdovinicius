@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -21,7 +21,9 @@ import { runNewtonRaphson } from "../lib/newtonRaphson.js";
 const DEFAULT_INPUTS = {
   expression: "x^3 - x - 2",
   x0: "1.5",
-  tolerance: "0.000001",
+  epsilon1: "0.000001",
+  epsilon2: "0.000001",
+  stopMode: "all",
   maxIterations: "50",
 };
 
@@ -60,12 +62,23 @@ function normalizeInputs(inputs) {
   }
 
   const x0 = parseDecimal(inputs.x0, "o chute inicial x₀", "x0");
-  const tolerance = parseDecimal(inputs.tolerance, "a tolerância", "tolerance");
+  const epsilon1 = parseDecimal(inputs.epsilon1, "a precisão ε₁", "epsilon1");
+  const epsilon2 = parseDecimal(inputs.epsilon2, "a precisão ε₂", "epsilon2");
   const maxIterations = Number(inputs.maxIterations);
 
-  if (!(tolerance > 0)) {
-    const error = new Error("A tolerância precisa ser maior que zero.");
-    error.field = "tolerance";
+  if (!(epsilon1 > 0)) {
+    const error = new Error("A precisão ε₁ precisa ser maior que zero.");
+    error.field = "epsilon1";
+    throw error;
+  }
+  if (!(epsilon2 > 0)) {
+    const error = new Error("A precisão ε₂ precisa ser maior que zero.");
+    error.field = "epsilon2";
+    throw error;
+  }
+  if (inputs.stopMode !== "all" && inputs.stopMode !== "any") {
+    const error = new Error("Escolha o modo E ou OU para os critérios de parada.");
+    error.field = "stopMode";
     throw error;
   }
   if (!Number.isInteger(maxIterations) || maxIterations < 1 || maxIterations > 200) {
@@ -74,7 +87,7 @@ function normalizeInputs(inputs) {
     throw error;
   }
 
-  return { expression, x0, tolerance, maxIterations };
+  return { expression, x0, epsilon1, epsilon2, stopMode: inputs.stopMode, maxIterations };
 }
 
 function finite(value) {
@@ -97,7 +110,9 @@ function formatNumber(value, digits = 8) {
 function reasonLabel(reason) {
   const labels = {
     "exact-root": "uma raiz exata foi encontrada",
-    "function-value": "o resíduo |f(x)| atingiu a tolerância",
+    "both-criteria": "as duas precisões foram satisfeitas",
+    "step-tolerance": "a variação entre aproximações satisfez ε₁",
+    "residual-tolerance": "o resíduo satisfez ε₂",
     "zero-derivative": "a derivada estimada é nula e não define o próximo passo",
     "derivative-unavailable": "não foi possível obter uma estimativa numérica finita para a derivada",
     "function-unavailable": "a nova aproximação ficou fora do domínio da função",
@@ -134,7 +149,7 @@ function warningTitle(reason) {
     "machine-precision": "A aproximação estagnou",
     divergence: "A sequência divergiu",
     cycle: "A sequência entrou em ciclo",
-    "max-iterations": "A aproximação ainda não atingiu a tolerância",
+    "max-iterations": "A aproximação ainda não atingiu o critério selecionado",
   };
   return labels[reason] || "A execução foi encerrada";
 }
@@ -142,36 +157,30 @@ function warningTitle(reason) {
 function IterationTable({ run, activeIndex, onSelect }) {
   return (
     <details className="newton-table-panel bisection-table-panel">
-      <summary>Consultar tabela completa ({run.iterations.length} iterações)</summary>
+      <summary>Consultar tabela completa ({run.iterations.length} linhas, de 0 a {run.iterations.at(-1)?.iteration ?? 0})</summary>
       <div className="newton-table-scroll bisection-table-scroll">
         <table>
           <thead>
             <tr>
-              <th scope="col">n</th>
+              <th scope="col">Iteração</th>
               <th scope="col">xₙ</th>
-              <th scope="col">f(xₙ)</th>
-              <th scope="col">f′(xₙ) estimada</th>
-              <th scope="col">f(xₙ) / f′(xₙ)</th>
-              <th scope="col">xₙ₊₁</th>
-              <th scope="col">f(xₙ₊₁)</th>
-              <th scope="col">|Δx|</th>
+              <th scope="col">|xₙ − xₙ₋₁|</th>
+              <th scope="col">|f(xₙ)|</th>
+              <th scope="col">Stop?</th>
             </tr>
           </thead>
           <tbody>
             {run.iterations.map((step, index) => (
-              <tr key={`${step.iteration}-${step.xCurrent}`} className={index === activeIndex ? "is-active" : ""}>
+              <tr key={`${step.iteration}-${step.x}`} className={index === activeIndex ? "is-active" : ""}>
                 <th scope="row">
                   <button type="button" onClick={() => onSelect(index)} aria-label={`Ver iteração ${step.iteration}`}>
                     {step.iteration}
                   </button>
                 </th>
-                <td>{formatNumber(step.xCurrent, 10)}</td>
-                <td>{formatNumber(step.fCurrent, 8)}</td>
-                <td>{formatNumber(step.derivativeEstimate, 8)}</td>
-                <td>{formatNumber(step.correction, 8)}</td>
-                <td>{formatNumber(step.xNext, 10)}</td>
-                <td>{formatNumber(step.fNext, 8)}</td>
-                <td>{formatNumber(step.stepError, 8)}</td>
+                <td>{formatNumber(step.x, 10)}</td>
+                <td>{formatNumber(step.delta, 8)}</td>
+                <td>{formatNumber(step.residual, 8)}</td>
+                <td>{step.stop ? "sim" : "não"}</td>
               </tr>
             ))}
           </tbody>
@@ -193,21 +202,9 @@ function NewtonRaphsonSimulatorPage() {
   const hasIterations = run.iterations.length > 0;
   const canPlay = run.iterations.length > 1;
   const lastIndex = Math.max(0, run.iterations.length - 1);
-  const fallbackStep = useMemo(() => ({
-    iteration: 0,
-    xCurrent: run.initialX,
-    fCurrent: run.fRoot,
-    derivativeEstimate: null,
-    correction: null,
-    xNext: run.root ?? run.initialX,
-    fNext: run.fRoot,
-    stepError: 0,
-  }), [run]);
-  const activeStep = run.iterations[Math.min(activeIndex, lastIndex)] || fallbackStep;
-  const activeApproximation = finite(activeStep?.xNext) ?? finite(activeStep?.xCurrent) ?? finite(run.root);
-  const activeResidual = finite(activeStep?.xNext) !== null
-    ? finite(activeStep?.fNext)
-    : finite(activeStep?.fCurrent) ?? finite(run.fRoot);
+  const activeStep = run.iterations[Math.min(activeIndex, lastIndex)] || null;
+  const activeApproximation = finite(activeStep?.x) ?? finite(run.root);
+  const activeResidual = finite(activeStep?.residual);
   const isAtEnd = activeIndex >= lastIndex;
 
   useEffect(() => {
@@ -336,17 +333,43 @@ function NewtonRaphsonSimulatorPage() {
                   aria-describedby="newton-simulator-error"
                 />
               </label>
-              <label htmlFor="newton-tolerance">
-                <span>Tolerância <i>ε</i></span>
+              <label htmlFor="newton-epsilon-1">
+                <span>Precisão <i>ε₁</i> · variação</span>
                 <input
-                  id="newton-tolerance"
+                  id="newton-epsilon-1"
                   type="text"
                   inputMode="decimal"
-                  value={inputs.tolerance}
-                  onChange={(event) => updateInput("tolerance", event.target.value)}
-                  aria-invalid={formError?.field === "tolerance"}
+                  value={inputs.epsilon1}
+                  onChange={(event) => updateInput("epsilon1", event.target.value)}
+                  aria-invalid={formError?.field === "epsilon1"}
                   aria-describedby="newton-simulator-error"
                 />
+              </label>
+              <label htmlFor="newton-epsilon-2">
+                <span>Precisão <i>ε₂</i> · resíduo</span>
+                <input
+                  id="newton-epsilon-2"
+                  type="text"
+                  inputMode="decimal"
+                  value={inputs.epsilon2}
+                  onChange={(event) => updateInput("epsilon2", event.target.value)}
+                  aria-invalid={formError?.field === "epsilon2"}
+                  aria-describedby="newton-simulator-error"
+                />
+              </label>
+              <label htmlFor="newton-stop-mode">
+                <span>Critérios de parada</span>
+                <select
+                  id="newton-stop-mode"
+                  value={inputs.stopMode}
+                  onChange={(event) => updateInput("stopMode", event.target.value)}
+                  aria-invalid={formError?.field === "stopMode"}
+                  aria-describedby="newton-stop-mode-help newton-simulator-error"
+                >
+                  <option value="all">Ambos os critérios (E)</option>
+                  <option value="any">Qualquer critério (OU)</option>
+                </select>
+                <small id="newton-stop-mode-help">E é o modo padrão.</small>
               </label>
               <label htmlFor="newton-max-iterations">
                 <span>Máx. de iterações</span>
@@ -361,6 +384,7 @@ function NewtonRaphsonSimulatorPage() {
                   aria-invalid={formError?.field === "maxIterations"}
                   aria-describedby="newton-simulator-error"
                 />
+                <small>N atualizações, além da linha inicial n = 0.</small>
               </label>
             </div>
 
@@ -377,7 +401,7 @@ function NewtonRaphsonSimulatorPage() {
               </p>
             ) : (
               <p className="newton-form-note bisection-form-note" id="newton-simulator-error">
-                Informe somente f(x): a derivada f′(x) é estimada automaticamente por diferenças finitas a cada iteração.
+                Parada quando |xₙ − xₙ₋₁| &lt; ε₁ e/ou |f(xₙ)| &lt; ε₂. A derivada é estimada automaticamente.
               </p>
             )}
 
@@ -421,16 +445,16 @@ function NewtonRaphsonSimulatorPage() {
               <strong>x ≈ {formatNumber(activeApproximation, 10)}</strong>
             </div>
             <div>
-              <span>Correção de Newton</span>
-              <strong>f / f′ = {formatNumber(activeStep?.correction, 7)}</strong>
+              <span>Variação</span>
+              <strong>|xₙ − xₙ₋₁| = {formatNumber(activeStep?.delta, 7)}</strong>
             </div>
             <div>
               <span>Resíduo</span>
-              <strong>|f(x)| = {formatNumber(activeResidual === null ? null : Math.abs(activeResidual), 7)}</strong>
+              <strong>|f(xₙ)| = {formatNumber(activeResidual, 7)}</strong>
             </div>
             <div>
-              <span>Derivada estimada</span>
-              <strong>f′(xₙ) ≈ {formatNumber(activeStep?.derivativeEstimate, 7)}</strong>
+              <span>Critério selecionado</span>
+              <strong>{run.stopMode === "all" ? "ε₁ E ε₂" : "ε₁ OU ε₂"} · Stop? {activeStep?.stop ? "sim" : "não"}</strong>
             </div>
           </div>
 
@@ -462,7 +486,7 @@ function NewtonRaphsonSimulatorPage() {
 
             <label className="newton-timeline bisection-timeline" htmlFor="newton-iteration-timeline">
               <span>
-                {hasIterations ? <>Iteração <strong>{activeStep.iteration}</strong> de {run.iterations.length}</> : <>Verificação do chute inicial</>}
+                {hasIterations ? <>Iteração <strong>{activeStep.iteration}</strong> de {lastIndex}</> : <>Verificação do chute inicial</>}
               </span>
               <input
                 id="newton-iteration-timeline"
@@ -520,6 +544,8 @@ function NewtonRaphsonSimulatorPage() {
               No ponto xₙ, substituímos a curva por sua reta tangente. A interseção dessa reta com o eixo x produz
               xₙ₊₁ = xₙ − f(xₙ) / f′(xₙ). Perto de uma raiz simples, com f suficientemente regular e f′ diferente
               de zero, o número de algarismos corretos costuma crescer muito depressa: a convergência é quadrática.
+              A linha 0 registra somente o chute; a partir da linha 1, cada quadro mostra a tangente que levou de
+              xₙ₋₁ a xₙ.
             </p>
           </div>
         </aside>

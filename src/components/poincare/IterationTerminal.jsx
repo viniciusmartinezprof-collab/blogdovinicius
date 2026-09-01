@@ -1,15 +1,24 @@
 import { useEffect, useRef } from "react";
 
 const TABLE_COLUMNS = [
-  { label: "it", value: (step) => String(step.iteration ?? "—") },
+  { label: "Iteração", value: (step) => String(step.iteration ?? "—") },
   { label: "a", value: (step) => formatNumber(step.a) },
   { label: "b", value: (step) => formatNumber(step.b) },
   { label: "m", value: (step) => formatNumber(step.midpoint) },
-  { label: "f(a)", value: (step) => formatNumber(getFA(step)) },
-  { label: "f(b)", value: (step) => formatNumber(getFB(step)) },
-  { label: "f(m)", value: (step) => formatNumber(step.fMidpoint) },
-  { label: "erro", value: (step) => formatNumber(step.errorEstimate) },
+  { label: "sign(f(a))", value: (step) => formatSign(step.signFA ?? getFA(step)) },
+  { label: "sign(f(b))", value: (step) => formatSign(step.signFB ?? getFB(step)) },
+  { label: "sign(f(m))", value: (step) => formatSign(step.signFMidpoint ?? step.fMidpoint) },
+  { label: "b-a", value: (step) => formatNumber(step.intervalWidth) },
+  { label: "Stop?", value: (step) => step.stop ? "sim" : "não" },
 ];
+
+function formatSign(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "—";
+  if (number === 0) return "0";
+  return number < 0 ? "−1" : "+1";
+}
 
 function formatNumber(value) {
   if (value === null || value === undefined || value === "") {
@@ -200,13 +209,12 @@ function getApproximation(run, lastStep) {
 function describeResult(run, lastStep) {
   const reason = normalizeReason(run.reason);
   const root = formatNumber(getApproximation(run, lastStep));
-  const iterationCount = run.iterations?.length ?? 0;
-  const iterationLabel = iterationCount === 1 ? "iteração" : "iterações";
+  const finalIteration = lastStep?.iteration ?? 0;
 
   if (reason.includes("max") || reason.includes("limit")) {
     return {
       isError: true,
-      text: `Limite de ${run.maxIterations ?? iterationCount} ${iterationLabel} atingido. Última aproximação: x ≈ ${root}.`,
+      text: `Limite de ${run.maxIterations ?? finalIteration} atualizações atingido na iteração ${finalIteration}. Última aproximação: x ≈ ${root}.`,
     };
   }
 
@@ -236,18 +244,7 @@ function describeResult(run, lastStep) {
   if (reason.includes("exact-root") || reason.includes("raiz-exata")) {
     return {
       isError: false,
-      text: `Raiz exata encontrada após ${iterationCount} ${iterationLabel}: x = ${root}.`,
-    };
-  }
-
-  if (
-    reason.includes("function") ||
-    reason.includes("residu") ||
-    reason.includes("f-value")
-  ) {
-    return {
-      isError: false,
-      text: `Convergência por |f(m)| ≤ ε após ${iterationCount} ${iterationLabel}. Raiz aproximada: x ≈ ${root}.`,
+      text: `Raiz exata encontrada na iteração ${finalIteration}: x = ${root}.`,
     };
   }
 
@@ -259,14 +256,14 @@ function describeResult(run, lastStep) {
   ) {
     return {
       isError: false,
-      text: `Convergência pela largura do intervalo após ${iterationCount} ${iterationLabel}. Raiz aproximada: x ≈ ${root}.`,
+      text: `Convergência na iteração ${finalIteration}: b − a < ε. Raiz aproximada: x ≈ ${root}.`,
     };
   }
 
   if (run.converged) {
     return {
       isError: false,
-      text: `Convergência alcançada após ${iterationCount} ${iterationLabel}. Raiz aproximada: x ≈ ${root}.`,
+      text: `Convergência alcançada na iteração ${finalIteration}. Raiz aproximada: x ≈ ${root}.`,
     };
   }
 

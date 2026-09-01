@@ -60,7 +60,7 @@ function safelyEvaluate(evaluate, x) {
 function trajectoryValues(run, iterations) {
   const values = [finite(run?.initialX)];
   iterations.forEach((step) => {
-    values.push(finite(step?.xCurrent), finite(step?.xNext));
+    values.push(finite(step?.previousX), finite(step?.x));
   });
   values.push(finite(run?.root));
   return values.filter((value) => value !== null).map(bounded);
@@ -122,7 +122,7 @@ function getYDomain(samples, iterations, run) {
     .map(bounded)
     .sort((left, right) => left - right);
   const stepValues = iterations
-    .flatMap((step) => [step?.fCurrent, step?.fNext])
+    .map((step) => step?.functionValue)
     .map(finite)
     .filter((value) => value !== null)
     .map(bounded);
@@ -243,34 +243,15 @@ function tangentSegment(xCurrent, fCurrent, derivative, xMinimum, xMaximum, yMin
 }
 
 function residualHistory(run, iterations) {
-  const points = [];
-  const firstStep = iterations[0];
-  const initialX = finite(run?.initialX) ?? finite(firstStep?.xCurrent) ?? finite(run?.root);
-  const initialValue = finite(firstStep?.fCurrent)
-    ?? (iterations.length === 0 ? finite(run?.fRoot) : null)
-    ?? safelyEvaluate(run?.evaluate, initialX);
-
-  if (initialValue !== null) {
-    points.push({ iteration: 0, x: initialX, residual: Math.abs(initialValue) });
-  }
-
-  iterations.forEach((step, index) => {
-    const fNext = finite(step?.fNext);
-    if (fNext === null) return;
-    points.push({
-      iteration: finite(step?.iteration) ?? index + 1,
-      x: finite(step?.xNext),
-      residual: Math.abs(fNext),
-    });
+  return iterations.flatMap((step, index) => {
+    const residual = finite(step?.residual);
+    if (residual === null) return [];
+    return [{
+      iteration: finite(step?.iteration) ?? index,
+      x: finite(step?.x),
+      residual,
+    }];
   });
-
-  if (!points.length) {
-    const finalValue = finite(run?.fRoot);
-    if (finalValue !== null) {
-      points.push({ iteration: iterations.length, x: finite(run?.root), residual: Math.abs(finalValue) });
-    }
-  }
-  return points;
 }
 
 function logFloor(points, tolerance) {
@@ -381,16 +362,20 @@ function NewtonRaphsonPlot({ run, activeIndex }) {
   const curvePaths = buildCurvePaths(samples, xScale, yScale, yMinimum, yMaximum);
   const xAxisY = yScale(0);
   const yAxisX = xMinimum <= 0 && xMaximum >= 0 ? xScale(0) : MARGIN.left;
-  const xCurrent = finite(currentStep?.xCurrent)
+  const selectedX = finite(currentStep?.x)
     ?? finite(run?.initialX)
     ?? finite(run?.root)
     ?? 0;
-  const fCurrent = finite(currentStep?.fCurrent)
+  const selectedF = finite(currentStep?.functionValue)
     ?? finite(run?.fRoot)
-    ?? safelyEvaluate(run?.evaluate, xCurrent);
-  const derivative = finite(currentStep?.derivativeEstimate);
-  const xNext = finite(currentStep?.xNext);
-  const fNext = finite(currentStep?.fNext);
+    ?? safelyEvaluate(run?.evaluate, selectedX);
+  const iterationLabel = finite(currentStep?.iteration) ?? 0;
+  const hasTransition = iterationLabel >= 1 && finite(currentStep?.previousX) !== null;
+  const xCurrent = hasTransition ? finite(currentStep?.previousX) : selectedX;
+  const fCurrent = hasTransition ? safelyEvaluate(run?.evaluate, xCurrent) : selectedF;
+  const derivative = hasTransition ? finite(currentStep?.derivativeEstimate) : null;
+  const xNext = hasTransition ? selectedX : null;
+  const fNext = hasTransition ? selectedF : null;
   const tangent = tangentSegment(
     bounded(xCurrent),
     fCurrent === null ? null : bounded(fCurrent),
@@ -400,16 +385,15 @@ function NewtonRaphsonPlot({ run, activeIndex }) {
     yMinimum,
     yMaximum,
   );
-  const iterationLabel = finite(currentStep?.iteration) ?? (currentIndex >= 0 ? currentIndex + 1 : 0);
-  const pointLabel = currentStep ? "xₙ" : "x₀";
+  const pointLabel = hasTransition ? "xₙ₋₁" : "x₀";
   const expression = String(run?.expression || "f(x)");
-  const hasIntercept = xNext !== null;
+  const hasIntercept = hasTransition && xNext !== null;
 
   const historyRight = WIDTH - HISTORY_MARGIN.right;
   const historyBottom = HISTORY_HEIGHT - HISTORY_MARGIN.bottom;
   const historyInnerWidth = historyRight - HISTORY_MARGIN.left;
   const historyInnerHeight = historyBottom - HISTORY_MARGIN.top;
-  const tolerance = finite(run?.tolerance);
+  const tolerance = finite(run?.epsilon2);
   const floor = logFloor(fullResiduals, tolerance);
   const [historyMinimum, historyMaximum] = getLogDomain(fullResiduals, tolerance, floor);
   const historyTicks = makeTicks(historyMinimum, historyMaximum, 4);
@@ -438,13 +422,13 @@ function NewtonRaphsonPlot({ run, activeIndex }) {
         style={{ display: "block", width: "100%", height: "auto" }}
       >
         <title id={plotTitleId}>
-          {currentStep ? `Newton-Raphson, iteração ${iterationLabel}` : "Newton-Raphson no chute inicial"}
+          {iterationLabel === 0 ? "Newton-Raphson no chute inicial" : `Newton-Raphson, iteração ${iterationLabel}`}
         </title>
         <desc id={plotDescriptionId}>
-          Gráfico de {expression}. O ponto atual é x igual a {formatNumber(xCurrent)}, com f de x igual a {formatNumber(fCurrent)}.
+          Gráfico de {expression}. A aproximação exibida é x igual a {formatNumber(selectedX)}, com f de x igual a {formatNumber(selectedF)}.
           {hasIntercept
-            ? ` A tangente cruza o eixo x na próxima aproximação, ${formatNumber(xNext)}.`
-            : " Esta etapa não produziu uma nova aproximação no eixo x."}
+            ? ` A tangente em ${formatNumber(xCurrent)} cruza o eixo x na aproximação atual, ${formatNumber(xNext)}.`
+            : " Na iteração zero, somente o chute inicial é mostrado."}
         </desc>
         <defs>
           <clipPath id={clipId}>
@@ -457,12 +441,21 @@ function NewtonRaphsonPlot({ run, activeIndex }) {
         <g aria-hidden="true" fontFamily="IBM Plex Mono, Courier New, monospace" fontSize="11.5">
           <line x1={MARGIN.left} x2={MARGIN.left + 25} y1="24" y2="24" stroke={COLORS.curve} strokeWidth="3" />
           <text x={MARGIN.left + 34} y="28" fill={COLORS.ink}>f(x)</text>
-          <line x1={MARGIN.left + 112} x2={MARGIN.left + 137} y1="24" y2="24" stroke={COLORS.tangent} strokeWidth="2.7" />
-          <text x={MARGIN.left + 146} y="28" fill={COLORS.ink}>tangente em xₙ</text>
-          <rect x={MARGIN.left + 287} y="19.5" width="9" height="9" fill={COLORS.next} transform={`rotate(45 ${MARGIN.left + 291.5} 24)`} />
-          <text x={MARGIN.left + 305} y="28" fill={COLORS.ink}>xₙ₊₁</text>
+          {hasTransition ? (
+            <>
+              <line x1={MARGIN.left + 112} x2={MARGIN.left + 137} y1="24" y2="24" stroke={COLORS.tangent} strokeWidth="2.7" />
+              <text x={MARGIN.left + 146} y="28" fill={COLORS.ink}>tangente em xₙ₋₁</text>
+              <rect x={MARGIN.left + 287} y="19.5" width="9" height="9" fill={COLORS.next} transform={`rotate(45 ${MARGIN.left + 291.5} 24)`} />
+              <text x={MARGIN.left + 305} y="28" fill={COLORS.ink}>xₙ</text>
+            </>
+          ) : (
+            <>
+              <circle cx={MARGIN.left + 118} cy="24" r="5" fill={COLORS.current} />
+              <text x={MARGIN.left + 132} y="28" fill={COLORS.ink}>chute x₀</text>
+            </>
+          )}
           <text x={MARGIN.left} y="51" fill={COLORS.muted} fontSize="11">
-            i={iterationLabel} · {pointLabel}={formatNumber(xCurrent, 7)} · |f({pointLabel})|={formatNumber(fCurrent === null ? null : Math.abs(fCurrent), 5)} · |Δx|={formatNumber(currentStep?.stepError, 5)}
+            i={iterationLabel} · xₙ={formatNumber(selectedX, 7)} · |f(xₙ)|={formatNumber(currentStep?.residual, 5)} · |xₙ−xₙ₋₁|={formatNumber(currentStep?.delta, 5)}
           </text>
         </g>
 
@@ -527,7 +520,7 @@ function NewtonRaphsonPlot({ run, activeIndex }) {
                 strokeWidth="2"
                 transform={`rotate(45 ${xScale(xNext)} ${xAxisY})`}
               >
-                <title>xₙ₊₁ = {formatNumber(xNext, 10)}</title>
+                <title>xₙ = {formatNumber(xNext, 10)}</title>
               </rect>
               <text
                 x={xScale(xNext)}
@@ -541,14 +534,14 @@ function NewtonRaphsonPlot({ run, activeIndex }) {
                 strokeWidth="3"
                 textAnchor="middle"
               >
-                xₙ₊₁
+                xₙ
               </text>
             </>
           ) : null}
 
           {xNext !== null && fNext !== null ? (
             <circle cx={xScale(xNext)} cy={yScale(fNext)} r="3.8" fill={COLORS.curve} stroke={COLORS.background} strokeWidth="1.8">
-              <title>f(xₙ₊₁) = {formatNumber(fNext, 10)}</title>
+              <title>f(xₙ) = {formatNumber(fNext, 10)}</title>
             </circle>
           ) : null}
         </g>
@@ -600,7 +593,7 @@ function NewtonRaphsonPlot({ run, activeIndex }) {
             QUEDA DO RESÍDUO · ESCALA LOG₁₀
           </text>
           <text x={HISTORY_MARGIN.left} y="42" fill={COLORS.muted} fontFamily="IBM Plex Mono, Courier New, monospace" fontSize="9.5">
-            |f(xₙ)| por iteração {tolerance !== null && tolerance > 0 ? `· tolerância ${formatNumber(tolerance, 4)}` : ""}
+            |f(xₙ)| por iteração {tolerance !== null && tolerance > 0 ? `· ε₂ = ${formatNumber(tolerance, 4)}` : ""}
           </text>
 
           <g clipPath={`url(#${historyClipId})`} aria-hidden="true">
@@ -642,7 +635,7 @@ function NewtonRaphsonPlot({ run, activeIndex }) {
               ) : null
             ))}
             <text x={historyRight} y={HISTORY_HEIGHT - 9} textAnchor="end">iteração n</text>
-            {toleranceY !== null ? <text x={historyRight - 4} y={toleranceY - 5} fill={COLORS.tolerance} textAnchor="end">ε</text> : null}
+            {toleranceY !== null ? <text x={historyRight - 4} y={toleranceY - 5} fill={COLORS.tolerance} textAnchor="end">ε₂</text> : null}
           </g>
 
           {!visibleResiduals.length ? (

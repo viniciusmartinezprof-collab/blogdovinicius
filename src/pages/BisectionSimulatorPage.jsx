@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -99,17 +99,21 @@ function formatNumber(value, digits = 8) {
   return Number(value.toPrecision(digits)).toString();
 }
 
+function formatSign(value) {
+  if (value === null || value === undefined) return "—";
+  if (value === 0) return "0";
+  return value < 0 ? "−1" : "+1";
+}
+
 function reasonLabel(reason) {
   const labels = {
-    "function-value": "|f(m)| atingiu a tolerância",
-    "interval-width": "o erro do intervalo atingiu a tolerância",
     "endpoint-a": "a extremidade a já era uma raiz",
     "endpoint-b": "a extremidade b já era uma raiz",
     "endpoint-root": "uma das extremidades já era uma raiz",
     "exact-root": "a raiz foi encontrada exatamente no ponto médio",
-    tolerance: "o erro do intervalo atingiu a tolerância",
+    tolerance: "a largura do intervalo satisfez b − a < ε",
     "machine-precision": "a precisão numérica do navegador foi alcançada",
-    "max-iterations": "limite de iterações alcançado",
+    "max-iterations": "o limite de atualizações foi alcançado",
   };
 
   return labels[reason] || "critério de parada alcançado";
@@ -118,17 +122,20 @@ function reasonLabel(reason) {
 function IterationTable({ run, activeIndex, onSelect }) {
   return (
     <details className="bisection-table-panel">
-      <summary>Consultar tabela completa ({run.iterations.length} iterações)</summary>
+      <summary>Consultar tabela completa ({run.iterations.length} linhas)</summary>
       <div className="bisection-table-scroll">
         <table>
           <thead>
             <tr>
-              <th scope="col">n</th>
-              <th scope="col">aₙ</th>
-              <th scope="col">mₙ</th>
-              <th scope="col">bₙ</th>
-              <th scope="col">f(mₙ)</th>
-              <th scope="col">erro ≤</th>
+              <th scope="col">Iteração</th>
+              <th scope="col">a</th>
+              <th scope="col">b</th>
+              <th scope="col">m</th>
+              <th scope="col">sign(f(a))</th>
+              <th scope="col">sign(f(b))</th>
+              <th scope="col">sign(f(m))</th>
+              <th scope="col">b − a</th>
+              <th scope="col">Stop?</th>
             </tr>
           </thead>
           <tbody>
@@ -140,10 +147,13 @@ function IterationTable({ run, activeIndex, onSelect }) {
                   </button>
                 </th>
                 <td>{formatNumber(step.a)}</td>
-                <td>{formatNumber(step.midpoint)}</td>
                 <td>{formatNumber(step.b)}</td>
-                <td>{formatNumber(step.fMidpoint)}</td>
-                <td>{formatNumber(step.errorEstimate)}</td>
+                <td>{formatNumber(step.midpoint)}</td>
+                <td>{formatSign(step.signFA ?? step.fA)}</td>
+                <td>{formatSign(step.signFB ?? step.fB)}</td>
+                <td>{formatSign(step.signFMidpoint ?? step.fMidpoint)}</td>
+                <td>{formatNumber(step.intervalWidth)}</td>
+                <td>{step.stop ? "sim" : "não"}</td>
               </tr>
             ))}
           </tbody>
@@ -165,23 +175,10 @@ function BisectionSimulatorPage() {
   const hasIterations = run.iterations.length > 0;
   const canPlay = run.iterations.length > 1;
   const lastIndex = Math.max(0, run.iterations.length - 1);
-  const endpointStep = useMemo(() => ({
-    iteration: 0,
-    a: run.initialA,
-    b: run.initialB,
-    fA: run.fInitialA,
-    fB: run.fInitialB,
-    midpoint: run.root,
-    fMidpoint: run.fRoot,
-    errorEstimate: 0,
-  }), [run]);
-  const activeStep = run.iterations[Math.min(activeIndex, lastIndex)] || endpointStep;
-  const visualRun = useMemo(
-    () => hasIterations ? run : { ...run, iterations: [endpointStep] },
-    [endpointStep, hasIterations, run],
-  );
+  const activeStep = run.iterations[Math.min(activeIndex, lastIndex)] || null;
   const isAtEnd = activeIndex >= lastIndex;
-  const stoppedByInterval = run.reason === "tolerance" || run.reason === "interval-width";
+  const stoppedByInterval = run.reason === "tolerance";
+  const endpointRootIsActive = isAtEnd && run.reason === "endpoint-root";
 
   useEffect(() => {
     if (!isPlaying) return undefined;
@@ -199,13 +196,6 @@ function BisectionSimulatorPage() {
   }, [activeIndex, isAtEnd, isPlaying, lastIndex, speed]);
 
   const progress = lastIndex === 0 ? 100 : (activeIndex / lastIndex) * 100;
-  const intervalReduction = useMemo(() => {
-    if (!activeStep) return 0;
-    const initialWidth = run.initialB - run.initialA;
-    const currentWidth = activeStep.b - activeStep.a;
-    return initialWidth > 0 ? Math.max(0, (1 - currentWidth / initialWidth) * 100) : 0;
-  }, [activeStep, run.initialA, run.initialB]);
-
   function updateInput(field, value) {
     setInputs((current) => ({ ...current, [field]: value }));
     if (formError) setFormError(null);
@@ -341,8 +331,9 @@ function BisectionSimulatorPage() {
                   value={inputs.tolerance}
                   onChange={(event) => updateInput("tolerance", event.target.value)}
                   aria-invalid={formError?.field === "tolerance"}
-                  aria-describedby="simulator-error"
+                  aria-describedby="tolerance-help simulator-error"
                 />
+                <small id="tolerance-help">Para quando b − a &lt; ε; a comparação é estrita.</small>
               </label>
               <label htmlFor="max-iterations">
                 <span>Máx. de iterações</span>
@@ -355,8 +346,9 @@ function BisectionSimulatorPage() {
                   value={inputs.maxIterations}
                   onChange={(event) => updateInput("maxIterations", event.target.value)}
                   aria-invalid={formError?.field === "maxIterations"}
-                  aria-describedby="simulator-error"
+                  aria-describedby="max-iterations-help simulator-error"
                 />
+                <small id="max-iterations-help">N atualizações geram, no máximo, as linhas 0 a N.</small>
               </label>
             </div>
 
@@ -417,19 +409,21 @@ function BisectionSimulatorPage() {
           <div className="bisection-metrics" aria-live="polite">
             <div>
               <span>Aproximação atual</span>
-              <strong>x ≈ {formatNumber(activeStep?.midpoint ?? run.root, 10)}</strong>
+              <strong>x ≈ {formatNumber(endpointRootIsActive ? run.root : activeStep?.midpoint ?? run.root, 10)}</strong>
             </div>
             <div>
               <span>Valor da função</span>
-              <strong>f(x) = {formatNumber(activeStep?.fMidpoint, 7)}</strong>
+              <strong>f(x) = {formatNumber(endpointRootIsActive ? run.fRoot : activeStep?.fMidpoint, 7)}</strong>
             </div>
             <div>
-              <span>Erro em x (se f contínua)</span>
-              <strong>≤ {formatNumber(activeStep?.errorEstimate, 7)}</strong>
+              <span>Largura atual</span>
+              <strong>b − a = {formatNumber(activeStep?.intervalWidth, 7)}</strong>
             </div>
             <div>
-              <span>Intervalo reduzido</span>
-              <strong>{hasIterations ? `${formatNumber(intervalReduction, 5)}%` : "não necessário"}</strong>
+              <span>Critério de parada</span>
+              <strong>
+                Stop? {activeStep?.stop ? "sim" : "não"} · b − a &lt; ε: {activeStep?.intervalCriterionMet ? "sim" : "não"}
+              </strong>
             </div>
           </div>
 
@@ -462,9 +456,9 @@ function BisectionSimulatorPage() {
             <label className="bisection-timeline" htmlFor="iteration-timeline">
               <span>
                 {hasIterations ? (
-                  <>Iteração <strong>{activeStep.iteration}</strong> de {run.iterations.length}</>
+                  <>Iteração <strong>{activeStep.iteration}</strong> de {run.iterations.at(-1)?.iteration ?? 0}</>
                 ) : (
-                  <>Verificação das extremidades</>
+                  <>Nenhuma linha disponível</>
                 )}
               </span>
               <input
@@ -493,7 +487,7 @@ function BisectionSimulatorPage() {
                 <span>Gráfico da iteração</span>
                 <code>f(x) = {run.expression}</code>
               </div>
-              <BisectionPlot run={visualRun} activeIndex={activeIndex} />
+              <BisectionPlot run={run} activeIndex={activeIndex} />
             </div>
             <IterationTerminal run={run} activeIndex={activeIndex} />
           </div>
@@ -520,6 +514,7 @@ function BisectionSimulatorPage() {
               Se uma função contínua troca de sinal entre a e b, o Teorema do Valor
               Intermediário garante ao menos uma raiz no intervalo. A cada passo,
               descartamos a metade que não precisamos e preservamos essa garantia.
+              Nesta simulação, a parada por precisão ocorre somente quando b − a &lt; ε.
             </p>
           </div>
         </aside>

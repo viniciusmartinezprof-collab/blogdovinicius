@@ -1,15 +1,23 @@
 import { useEffect, useRef } from "react";
 
 const COLUMNS = [
-  { label: "it", value: (step) => String(step.iteration ?? "—") },
+  { label: "Iteração", value: (step) => String(step.iteration ?? "—") },
   { label: "a", value: (step) => formatNumber(step.a) },
   { label: "b", value: (step) => formatNumber(step.b) },
-  { label: "c", value: (step) => formatNumber(step.estimate) },
-  { label: "f(a)", value: (step) => formatNumber(step.fA) },
-  { label: "f(b)", value: (step) => formatNumber(step.fB) },
-  { label: "f(c)", value: (step) => formatNumber(step.fEstimate) },
-  { label: "erro*", value: (step) => formatNumber(step.errorEstimate) },
+  { label: "x_n", value: (step) => formatNumber(step.estimate) },
+  { label: "sign(f(a))", value: (step) => formatSign(step.signFA) },
+  { label: "sign(f(b))", value: (step) => formatSign(step.signFB) },
+  { label: "sign(f(x_n))", value: (step) => formatSign(step.signFEstimate) },
+  { label: "|b-a|", value: (step) => formatNumber(step.intervalWidth) },
+  { label: "|f(x_n)|", value: (step) => formatNumber(step.residual) },
+  { label: "Stop?", value: (step) => step.stop ? "sim" : "não" },
 ];
+
+function formatSign(value) {
+  if (value < 0) return "−1";
+  if (value > 0) return "+1";
+  return "0";
+}
 
 function formatNumber(value, significantDigits = 8) {
   const number = Number(value);
@@ -72,40 +80,44 @@ function describeValidation(run, firstStep) {
 function describeDecision(step) {
   if (!step) return null;
 
-  if (step.fEstimate === 0 || step.keptHalf === "none") {
-    return `A secante interceptou o eixo em c = ${formatNumber(step.estimate)}${step.fEstimate === 0 ? ", uma raiz exata." : "."}`;
+  if (step.fEstimate === 0) {
+    return `A secante interceptou o eixo em xₙ = ${formatNumber(step.estimate)}, uma raiz exata; nenhuma atualização adicional é necessária.`;
+  }
+
+  if (step.keptHalf === "none") {
+    return `A secante interceptou o eixo em xₙ = ${formatNumber(step.estimate)}. Esta é uma linha terminal, portanto o intervalo exibido não é atualizado.`;
   }
 
   if (step.keptHalf === "left") {
-    return `f(a) e f(c) têm sinais opostos: preservamos [a, c] = ${formatInterval(step.nextA, step.nextB)}.`;
+    return `f(a) e f(xₙ) têm sinais opostos: o próximo intervalo será [a, xₙ] = ${formatInterval(step.nextA, step.nextB)}.`;
   }
 
   if (step.keptHalf === "right") {
-    return `f(c) e f(b) têm sinais opostos: preservamos [c, b] = ${formatInterval(step.nextA, step.nextB)}.`;
+    return `f(xₙ) e f(b) têm sinais opostos: o próximo intervalo será [xₙ, b] = ${formatInterval(step.nextA, step.nextB)}.`;
   }
 
   return `Novo intervalo com troca de sinal: ${formatInterval(step.nextA, step.nextB)}.`;
 }
 
 function describeResult(run) {
-  const iterationCount = run.iterations?.length ?? 0;
-  const plural = iterationCount === 1 ? "iteração" : "iterações";
+  const finalIteration = run.iterations?.at(-1)?.iteration ?? 0;
   const root = formatNumber(run.root ?? run.iterations?.at(-1)?.estimate);
 
   switch (run.reason) {
     case "endpoint-root":
       return { isError: false, text: `Convergência imediata: uma extremidade é raiz, x = ${root}.` };
     case "exact-root":
-      return { isError: false, text: `Raiz exata encontrada em ${iterationCount} ${plural}: x = ${root}.` };
+      return { isError: false, text: `Raiz exata encontrada na iteração ${finalIteration}: x = ${root}.` };
+    case "both-criteria":
+      return { isError: false, text: `Os critérios |b − a| < ε₁ e |f(xₙ)| < ε₂ foram satisfeitos na iteração ${finalIteration}: x ≈ ${root}.` };
     case "function-value":
-    case "function-tolerance":
-      return { isError: false, text: `Critério |f(c)| ≤ ε satisfeito em ${iterationCount} ${plural}: x ≈ ${root}.` };
+      return { isError: false, text: `Critério |f(xₙ)| < ε₂ satisfeito na iteração ${finalIteration}: x ≈ ${root}.` };
     case "interval-width":
-      return { isError: false, text: `O intervalo retido atingiu largura ≤ ε em ${iterationCount} ${plural}: x ≈ ${root}.` };
+      return { isError: false, text: `Critério |b − a| < ε₁ satisfeito na iteração ${finalIteration}: x ≈ ${root}.` };
     case "machine-precision":
       return { isError: true, text: `A precisão numérica impediu um novo avanço. Última aproximação: x ≈ ${root}.` };
     case "max-iterations":
-      return { isError: true, text: `Limite de ${run.maxIterations ?? iterationCount} ${plural} atingido. Última aproximação: x ≈ ${root}.` };
+      return { isError: true, text: `Limite de ${run.maxIterations ?? finalIteration} atualizações atingido (linhas 0 a ${finalIteration}). Última aproximação: x ≈ ${root}.` };
     default:
       return run.converged
         ? { isError: false, text: `Convergência alcançada: x ≈ ${root}.` }
@@ -168,7 +180,8 @@ function FalsePositionTerminal({ run, activeIndex }) {
               <span className="iteration-terminal-prompt" aria-hidden="true">&gt;&gt;&gt;</span>{" "}
               <code>
                 falsa_posicao(f, a={formatNumber(run.initialA)}, b={formatNumber(run.initialB)},
-                tol={formatNumber(run.tolerance)}, max_iter={run.maxIterations ?? "—"})
+                eps1={formatNumber(run.epsilon1)}, eps2={formatNumber(run.epsilon2)},
+                modo={run.stopMode === "all" ? '"E"' : '"OU"'}, max_atualizacoes={run.maxIterations ?? "—"})
               </code>
             </p>
             <p className="iteration-terminal-line is-validation">
@@ -178,11 +191,11 @@ function FalsePositionTerminal({ run, activeIndex }) {
               <>
                 <p className="iteration-terminal-line is-muted">
                   <span aria-hidden="true">#</span>{" "}
-                  c = (a·f(b) − b·f(a)) / (f(b) − f(a))
+                  x_n = (a·f(b) − b·f(a)) / (f(b) − f(a))
                 </p>
                 <p className="iteration-terminal-line is-muted">
                   <span aria-hidden="true">#</span>{" "}
-                  erro*: |b − a| no primeiro passo; depois, |cₙ − cₙ₋₁|
+                  C₁: |b − a| &lt; ε₁ · C₂: |f(xₙ)| &lt; ε₂ · combinação: {run.stopMode === "all" ? "E" : "OU"}
                 </p>
               </>
             ) : null}
@@ -206,7 +219,7 @@ function FalsePositionTerminal({ run, activeIndex }) {
 
             {activeStep && !isAtEnd ? (
               <p className="iteration-terminal-line is-muted">
-                |f(c)| = {formatNumber(Math.abs(activeStep.fEstimate))} · {activeStep.iteration === 1 ? "|b − a|" : "|Δc|"} = {formatNumber(activeStep.errorEstimate)}
+                C₁ {activeStep.intervalCriterionMet ? "satisfeito" : "não satisfeito"} · C₂ {activeStep.functionCriterionMet ? "satisfeito" : "não satisfeito"} · Stop? {activeStep.stop ? "sim" : "não"}
               </p>
             ) : null}
 

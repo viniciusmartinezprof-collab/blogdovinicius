@@ -1,8 +1,9 @@
 import { MathExpressionError, compileExpression } from "./mathExpression.js";
 
-const DEFAULT_TOLERANCE = 1e-6;
+const DEFAULT_EPSILON = 1e-6;
 const DEFAULT_MAX_ITERATIONS = 100;
 const MAX_ITERATIONS_LIMIT = 1000;
+const STOP_MODES = new Set(["all", "any"]);
 const DECIMAL_NUMBER = /^[+-]?(?:\d+(?:[.,]\d*)?|[.,]\d+)(?:[eE][+-]?\d+)?$/;
 
 export class FalsePositionError extends Error {
@@ -47,6 +48,15 @@ function parseMaxIterations(value) {
   return parsed;
 }
 
+function parseStopMode(value) {
+  if (STOP_MODES.has(value)) return value;
+  throw new FalsePositionError(
+    "INVALID_STOP_MODE",
+    'O modo de parada deve ser "all" (ambos) ou "any" (qualquer um).',
+    "stopMode",
+  );
+}
+
 function evaluateAt(evaluate, x, location, iteration = null) {
   try {
     return evaluate(x);
@@ -80,6 +90,60 @@ function result(base, root, fRoot, converged, reason) {
   return { ...base, root, fRoot, converged, reason };
 }
 
+function makeIteration({
+  iteration,
+  a,
+  b,
+  fA,
+  fB,
+  estimate,
+  fEstimate,
+  epsilon1,
+  epsilon2,
+  stopMode,
+  exactRoot = false,
+  nextA = a,
+  nextB = b,
+  keptHalf = "none",
+}) {
+  const intervalWidth = Math.abs(b - a);
+  const residual = Math.abs(fEstimate);
+  const intervalCriterionMet = intervalWidth < epsilon1;
+  const functionCriterionMet = residual < epsilon2;
+  const precisionStop = stopMode === "all"
+    ? intervalCriterionMet && functionCriterionMet
+    : intervalCriterionMet || functionCriterionMet;
+
+  return {
+    iteration,
+    a,
+    b,
+    fA,
+    fB,
+    estimate,
+    fEstimate,
+    signFA: Math.sign(fA),
+    signFB: Math.sign(fB),
+    signFEstimate: Math.sign(fEstimate),
+    intervalWidth,
+    residual,
+    criterion1Met: intervalCriterionMet,
+    criterion2Met: functionCriterionMet,
+    intervalCriterionMet,
+    functionCriterionMet,
+    stop: exactRoot || precisionStop,
+    nextA,
+    nextB,
+    keptHalf,
+  };
+}
+
+function precisionReason(iteration) {
+  if (iteration.intervalCriterionMet && iteration.functionCriterionMet) return "both-criteria";
+  if (iteration.intervalCriterionMet) return "interval-width";
+  return "function-value";
+}
+
 /**
  * Executa o método da falsa posição e preserva cada intervalo para animação.
  */
@@ -87,7 +151,9 @@ export function runFalsePosition({
   expression,
   a,
   b,
-  tolerance = DEFAULT_TOLERANCE,
+  epsilon1 = DEFAULT_EPSILON,
+  epsilon2 = DEFAULT_EPSILON,
+  stopMode = "all",
   maxIterations = DEFAULT_MAX_ITERATIONS,
 } = {}) {
   let evaluate;
@@ -100,7 +166,9 @@ export function runFalsePosition({
 
   const initialA = parseFiniteNumber(a, "a", "o extremo a");
   const initialB = parseFiniteNumber(b, "b", "o extremo b");
-  const parsedTolerance = parseFiniteNumber(tolerance, "tolerance", "a tolerância");
+  const parsedEpsilon1 = parseFiniteNumber(epsilon1, "epsilon1", "a precisão ε₁");
+  const parsedEpsilon2 = parseFiniteNumber(epsilon2, "epsilon2", "a precisão ε₂");
+  const parsedStopMode = parseStopMode(stopMode);
   const parsedMaxIterations = parseMaxIterations(maxIterations);
 
   if (initialA >= initialB) {
@@ -119,11 +187,19 @@ export function runFalsePosition({
     );
   }
 
-  if (parsedTolerance <= 0) {
+  if (parsedEpsilon1 <= 0) {
     throw new FalsePositionError(
-      "INVALID_TOLERANCE",
-      "A tolerância deve ser maior que zero.",
-      "tolerance",
+      "INVALID_EPSILON",
+      "A precisão ε₁ deve ser maior que zero.",
+      "epsilon1",
+    );
+  }
+
+  if (parsedEpsilon2 <= 0) {
+    throw new FalsePositionError(
+      "INVALID_EPSILON",
+      "A precisão ε₂ deve ser maior que zero.",
+      "epsilon2",
     );
   }
 
@@ -137,13 +213,33 @@ export function runFalsePosition({
     evaluate,
     initialA,
     initialB,
-    tolerance: parsedTolerance,
+    epsilon1: parsedEpsilon1,
+    epsilon2: parsedEpsilon2,
+    stopMode: parsedStopMode,
     maxIterations: parsedMaxIterations,
     iterations,
   };
 
-  if (fLeft === 0) return result(base, left, fLeft, true, "endpoint-root");
-  if (fRight === 0) return result(base, right, fRight, true, "endpoint-root");
+  if (fLeft === 0 || fRight === 0) {
+    const root = fLeft === 0 ? left : right;
+    const fRoot = fLeft === 0 ? fLeft : fRight;
+    iterations.push(makeIteration({
+      iteration: 0,
+      a: left,
+      b: right,
+      fA: fLeft,
+      fB: fRight,
+      estimate: root,
+      fEstimate: fRoot,
+      epsilon1: parsedEpsilon1,
+      epsilon2: parsedEpsilon2,
+      stopMode: parsedStopMode,
+      exactRoot: true,
+      nextA: left,
+      nextB: right,
+    }));
+    return result(base, root, fRoot, true, "endpoint-root");
+  }
 
   if (Math.sign(fLeft) === Math.sign(fRight)) {
     throw new FalsePositionError(
@@ -154,11 +250,10 @@ export function runFalsePosition({
     );
   }
 
-  let previousEstimate = null;
   let lastEstimate = null;
   let lastFunctionValue = null;
 
-  for (let iteration = 1; iteration <= parsedMaxIterations; iteration += 1) {
+  for (let iteration = 0; iteration <= parsedMaxIterations; iteration += 1) {
     const estimate = falsePositionBetween(left, right, fLeft, fRight);
 
     if (!Number.isFinite(estimate) || estimate < left || estimate > right) {
@@ -176,24 +271,7 @@ export function runFalsePosition({
         : estimate === right
           ? fRight
           : evaluateAt(evaluate, estimate, "estimativa", iteration);
-    const errorEstimate =
-      previousEstimate === null ? Math.abs(right - left) : Math.abs(estimate - previousEstimate);
-
-    let nextA = left;
-    let nextB = right;
-    let keptHalf = "none";
-
-    if (fEstimate !== 0) {
-      if (Math.sign(fLeft) !== Math.sign(fEstimate)) {
-        nextB = estimate;
-        keptHalf = "left";
-      } else {
-        nextA = estimate;
-        keptHalf = "right";
-      }
-    }
-
-    iterations.push({
+    const record = makeIteration({
       iteration,
       a: left,
       b: right,
@@ -201,35 +279,45 @@ export function runFalsePosition({
       fB: fRight,
       estimate,
       fEstimate,
-      errorEstimate,
-      nextA,
-      nextB,
-      keptHalf,
+      epsilon1: parsedEpsilon1,
+      epsilon2: parsedEpsilon2,
+      stopMode: parsedStopMode,
+      exactRoot: fEstimate === 0,
     });
+    const machinePrecisionReached = estimate === left || estimate === right;
+
+    // Só descrevemos um próximo intervalo quando a atualização realmente será
+    // executada. Linhas de parada, limite e estagnação preservam [a, b].
+    if (!record.stop && !machinePrecisionReached && iteration < parsedMaxIterations) {
+      if (Math.sign(fLeft) !== Math.sign(fEstimate)) {
+        record.nextB = estimate;
+        record.keptHalf = "left";
+      } else {
+        record.nextA = estimate;
+        record.keptHalf = "right";
+      }
+    }
+    iterations.push(record);
 
     lastEstimate = estimate;
     lastFunctionValue = fEstimate;
 
     if (fEstimate === 0) return result(base, estimate, fEstimate, true, "exact-root");
-    if (Math.abs(fEstimate) <= parsedTolerance) {
-      return result(base, estimate, fEstimate, true, "function-value");
+    if (record.stop) {
+      return result(base, estimate, fEstimate, true, precisionReason(record));
     }
-    const retainedWidth = Math.abs(nextB - nextA);
-    if (retainedWidth <= parsedTolerance) {
-      return result(base, estimate, fEstimate, true, "interval-width");
-    }
-    if (estimate === left || estimate === right) {
+    if (machinePrecisionReached) {
       return result(base, estimate, fEstimate, false, "machine-precision");
     }
+    if (iteration === parsedMaxIterations) break;
 
-    if (nextB === estimate) {
+    if (record.nextB === estimate) {
       right = estimate;
       fRight = fEstimate;
     } else {
       left = estimate;
       fLeft = fEstimate;
     }
-    previousEstimate = estimate;
   }
 
   return result(base, lastEstimate, lastFunctionValue, false, "max-iterations");

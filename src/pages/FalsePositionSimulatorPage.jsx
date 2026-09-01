@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -22,7 +22,9 @@ const DEFAULT_INPUTS = {
   expression: "x^3 - x - 2",
   a: "1",
   b: "2",
-  tolerance: "0.0001",
+  epsilon1: "0.0001",
+  epsilon2: "0.0001",
+  stopMode: "all",
   maxIterations: "50",
 };
 
@@ -61,7 +63,9 @@ function normalizeInputs(inputs) {
 
   const a = parseDecimal(inputs.a, "a", "a");
   const b = parseDecimal(inputs.b, "b", "b");
-  const tolerance = parseDecimal(inputs.tolerance, "tolerance", "a tolerância");
+  const epsilon1 = parseDecimal(inputs.epsilon1, "epsilon1", "a precisão ε₁");
+  const epsilon2 = parseDecimal(inputs.epsilon2, "epsilon2", "a precisão ε₂");
+  const stopMode = inputs.stopMode;
   const maxIterations = Number(inputs.maxIterations);
 
   if (a >= b) {
@@ -69,28 +73,28 @@ function normalizeInputs(inputs) {
     error.field = "interval";
     throw error;
   }
-  if (tolerance <= 0) {
-    const error = new Error("A tolerância precisa ser maior que zero.");
-    error.field = "tolerance";
+  if (epsilon1 <= 0) {
+    const error = new Error("A precisão ε₁ precisa ser maior que zero.");
+    error.field = "epsilon1";
+    throw error;
+  }
+  if (epsilon2 <= 0) {
+    const error = new Error("A precisão ε₂ precisa ser maior que zero.");
+    error.field = "epsilon2";
+    throw error;
+  }
+  if (stopMode !== "all" && stopMode !== "any") {
+    const error = new Error("Escolha se a parada exige ambos ou qualquer um dos critérios.");
+    error.field = "stopMode";
     throw error;
   }
   if (!Number.isInteger(maxIterations) || maxIterations < 1 || maxIterations > 200) {
-    const error = new Error("Use um máximo entre 1 e 200 iterações.");
+    const error = new Error("Use um máximo entre 1 e 200 atualizações.");
     error.field = "maxIterations";
     throw error;
   }
 
-  return { expression, a, b, tolerance, maxIterations };
-}
-
-function safeEvaluate(evaluate, x) {
-  if (typeof evaluate !== "function" || !Number.isFinite(x)) return null;
-  try {
-    const value = evaluate(x);
-    return Number.isFinite(value) ? value : null;
-  } catch {
-    return null;
-  }
+  return { expression, a, b, epsilon1, epsilon2, stopMode, maxIterations };
 }
 
 function formatNumber(value, digits = 8) {
@@ -107,40 +111,39 @@ function reasonLabel(reason) {
   const labels = {
     "endpoint-root": "uma das extremidades já era raiz",
     "exact-root": "a interseção da secante encontrou uma raiz exata",
-    "function-value": "o resíduo |f(c)| atingiu a tolerância",
-    "function-tolerance": "o resíduo |f(c)| atingiu a tolerância",
-    "interval-width": "a largura do intervalo retido atingiu a tolerância",
-    "step-size": "a variação |cₙ − cₙ₋₁| atingiu a tolerância",
-    "step-tolerance": "a variação |cₙ − cₙ₋₁| atingiu a tolerância",
+    "both-criteria": "os dois critérios de precisão foram satisfeitos",
+    "function-value": "o resíduo |f(xₙ)| ficou menor que ε₂",
+    "interval-width": "a largura |b − a| ficou menor que ε₁",
     "machine-precision": "a precisão numérica do navegador foi alcançada",
-    "max-iterations": "o limite de iterações foi alcançado",
+    "max-iterations": "o limite de atualizações foi alcançado",
   };
   return labels[reason] || "o critério de parada foi alcançado";
 }
 
-function keptIntervalLabel(step) {
-  if (step.keptHalf === "left") return "[a, c]";
-  if (step.keptHalf === "right") return "[c, b]";
-  return "raiz";
+function formatSign(value) {
+  if (value < 0) return "−1";
+  if (value > 0) return "+1";
+  return "0";
 }
 
 function IterationTable({ run, activeIndex, onSelect }) {
   return (
     <details className="bisection-table-panel false-position-table-panel">
-      <summary>Consultar tabela completa ({run.iterations.length} iterações)</summary>
+      <summary>Consultar tabela completa ({run.iterations.length} linhas)</summary>
       <div className="bisection-table-scroll false-position-table-scroll">
         <table>
           <thead>
             <tr>
-              <th scope="col">n</th>
-              <th scope="col">aₙ</th>
-              <th scope="col">bₙ</th>
-              <th scope="col">cₙ (secante)</th>
-              <th scope="col">f(aₙ)</th>
-              <th scope="col">f(bₙ)</th>
-              <th scope="col">f(cₙ)</th>
-              <th scope="col">passo / escala</th>
-              <th scope="col">retém</th>
+              <th scope="col">Iteração</th>
+              <th scope="col">a</th>
+              <th scope="col">b</th>
+              <th scope="col">xₙ</th>
+              <th scope="col">sign(f(a))</th>
+              <th scope="col">sign(f(b))</th>
+              <th scope="col">sign(f(xₙ))</th>
+              <th scope="col">|b − a|</th>
+              <th scope="col">|f(xₙ)|</th>
+              <th scope="col">Stop?</th>
             </tr>
           </thead>
           <tbody>
@@ -154,11 +157,12 @@ function IterationTable({ run, activeIndex, onSelect }) {
                 <td>{formatNumber(step.a)}</td>
                 <td>{formatNumber(step.b)}</td>
                 <td>{formatNumber(step.estimate)}</td>
-                <td>{formatNumber(step.fA)}</td>
-                <td>{formatNumber(step.fB)}</td>
-                <td>{formatNumber(step.fEstimate)}</td>
-                <td>{formatNumber(step.errorEstimate)}</td>
-                <td>{keptIntervalLabel(step)}</td>
+                <td>{formatSign(step.signFA)}</td>
+                <td>{formatSign(step.signFB)}</td>
+                <td>{formatSign(step.signFEstimate)}</td>
+                <td>{formatNumber(step.intervalWidth)}</td>
+                <td>{formatNumber(step.residual)}</td>
+                <td>{step.stop ? "sim" : "não"}</td>
               </tr>
             ))}
           </tbody>
@@ -180,24 +184,7 @@ function FalsePositionSimulatorPage() {
   const hasIterations = run.iterations.length > 0;
   const canPlay = run.iterations.length > 1;
   const lastIndex = Math.max(0, run.iterations.length - 1);
-  const endpointStep = useMemo(() => ({
-    iteration: 0,
-    a: run.initialA,
-    b: run.initialB,
-    fA: safeEvaluate(run.evaluate, run.initialA),
-    fB: safeEvaluate(run.evaluate, run.initialB),
-    estimate: run.root,
-    fEstimate: run.fRoot,
-    errorEstimate: 0,
-    nextA: run.root,
-    nextB: run.root,
-    keptHalf: "none",
-  }), [run]);
-  const activeStep = run.iterations[Math.min(activeIndex, lastIndex)] || endpointStep;
-  const visualRun = useMemo(
-    () => hasIterations ? run : { ...run, iterations: [endpointStep] },
-    [endpointStep, hasIterations, run],
-  );
+  const activeStep = run.iterations[Math.min(activeIndex, lastIndex)] || null;
   const isAtEnd = activeIndex >= lastIndex;
 
   useEffect(() => {
@@ -213,15 +200,6 @@ function FalsePositionSimulatorPage() {
   }, [activeIndex, isAtEnd, isPlaying, lastIndex, speed]);
 
   const progress = lastIndex === 0 ? 100 : (activeIndex / lastIndex) * 100;
-  const intervalReduction = useMemo(() => {
-    const initialWidth = run.initialB - run.initialA;
-    const retainedA = Number.isFinite(activeStep?.nextA) ? activeStep.nextA : activeStep?.a;
-    const retainedB = Number.isFinite(activeStep?.nextB) ? activeStep.nextB : activeStep?.b;
-    const retainedWidth = retainedB - retainedA;
-    return initialWidth > 0 && Number.isFinite(retainedWidth)
-      ? Math.max(0, Math.min(100, (1 - retainedWidth / initialWidth) * 100))
-      : 0;
-  }, [activeStep, run.initialA, run.initialB]);
 
   function updateInput(field, value) {
     setInputs((current) => ({ ...current, [field]: value }));
@@ -287,7 +265,7 @@ function FalsePositionSimulatorPage() {
         </div>
         <div className="poincare-header-formula false-position-header-formula" aria-hidden="true">
           <span>aₙf(bₙ) − bₙf(aₙ)</span>
-          <span>─────────────── = cₙ</span>
+          <span>─────────────── = xₙ</span>
           <span>f(bₙ) − f(aₙ)</span>
         </div>
       </header>
@@ -349,20 +327,45 @@ function FalsePositionSimulatorPage() {
                   aria-describedby="false-position-error"
                 />
               </label>
-              <label htmlFor="false-position-tolerance">
-                <span>Tolerância <i>ε</i></span>
+              <label htmlFor="false-position-epsilon-1">
+                <span>Precisão <i>ε₁</i> para |b − a|</span>
                 <input
-                  id="false-position-tolerance"
+                  id="false-position-epsilon-1"
                   type="text"
                   inputMode="decimal"
-                  value={inputs.tolerance}
-                  onChange={(event) => updateInput("tolerance", event.target.value)}
-                  aria-invalid={formError?.field === "tolerance"}
+                  value={inputs.epsilon1}
+                  onChange={(event) => updateInput("epsilon1", event.target.value)}
+                  aria-invalid={formError?.field === "epsilon1"}
                   aria-describedby="false-position-error"
                 />
               </label>
+              <label htmlFor="false-position-epsilon-2">
+                <span>Precisão <i>ε₂</i> para |f(xₙ)|</span>
+                <input
+                  id="false-position-epsilon-2"
+                  type="text"
+                  inputMode="decimal"
+                  value={inputs.epsilon2}
+                  onChange={(event) => updateInput("epsilon2", event.target.value)}
+                  aria-invalid={formError?.field === "epsilon2"}
+                  aria-describedby="false-position-error"
+                />
+              </label>
+              <label className="bisection-speed false-position-stop-mode" htmlFor="false-position-stop-mode">
+                <span>Combinação dos critérios</span>
+                <select
+                  id="false-position-stop-mode"
+                  value={inputs.stopMode}
+                  onChange={(event) => updateInput("stopMode", event.target.value)}
+                  aria-invalid={formError?.field === "stopMode"}
+                  aria-describedby="false-position-error"
+                >
+                  <option value="all">E · atingir ambos</option>
+                  <option value="any">OU · atingir qualquer um</option>
+                </select>
+              </label>
               <label htmlFor="false-position-max-iterations">
-                <span>Máx. de iterações</span>
+                <span>Máx. de atualizações</span>
                 <input
                   id="false-position-max-iterations"
                   type="number"
@@ -392,7 +395,7 @@ function FalsePositionSimulatorPage() {
               </p>
             ) : (
               <p className="bisection-form-note false-position-form-note" id="false-position-error">
-                Escolha a e b com f(a) · f(b) &lt; 0. Se f for contínua, há uma raiz cercada.
+                A linha 0 usa o intervalo inicial. A parada exige {inputs.stopMode === "all" ? "os dois critérios (E)" : "qualquer critério (OU)"}, sempre com comparação estrita &lt; ε.
               </p>
             )}
 
@@ -434,19 +437,19 @@ function FalsePositionSimulatorPage() {
           <div className="bisection-metrics false-position-metrics" aria-live="polite">
             <div>
               <span>Interseção da secante</span>
-              <strong>c ≈ {formatNumber(activeStep?.estimate ?? run.root, 10)}</strong>
+              <strong>xₙ ≈ {formatNumber(activeStep?.estimate ?? run.root, 10)}</strong>
             </div>
             <div>
               <span>Resíduo atual</span>
-              <strong>|f(c)| = {formatNumber(Math.abs(activeStep?.fEstimate), 7)}</strong>
+              <strong>|f(xₙ)| = {formatNumber(activeStep?.residual, 7)}</strong>
             </div>
             <div>
-              <span>{activeStep?.iteration === 1 ? "Escala inicial" : "Variação da estimativa"}</span>
-              <strong>{activeStep?.iteration === 1 ? "|b − a|" : "|cₙ − cₙ₋₁|"} = {formatNumber(activeStep?.errorEstimate, 7)}</strong>
+              <span>Largura exibida</span>
+              <strong>|b − a| = {formatNumber(activeStep?.intervalWidth, 7)}</strong>
             </div>
             <div>
-              <span>Intervalo reduzido</span>
-              <strong>{hasIterations ? `${formatNumber(intervalReduction, 5)}%` : "não necessário"}</strong>
+              <span>Critérios nesta linha</span>
+              <strong>C₁ {activeStep?.intervalCriterionMet ? "sim" : "não"} · C₂ {activeStep?.functionCriterionMet ? "sim" : "não"}</strong>
             </div>
           </div>
 
@@ -479,7 +482,7 @@ function FalsePositionSimulatorPage() {
             <label className="bisection-timeline false-position-timeline" htmlFor="false-position-timeline">
               <span>
                 {hasIterations ? (
-                  <>Iteração <strong>{activeStep.iteration}</strong> de {run.iterations.length}</>
+                  <>Iteração <strong>{activeStep.iteration}</strong> de {run.iterations.at(-1)?.iteration ?? 0}</>
                 ) : (
                   <>Verificação das extremidades</>
                 )}
@@ -510,7 +513,7 @@ function FalsePositionSimulatorPage() {
                 <span>Função, secante e histórico</span>
                 <code>f(x) = {run.expression}</code>
               </div>
-              <FalsePositionPlot run={visualRun} activeIndex={activeIndex} />
+              <FalsePositionPlot run={run} activeIndex={activeIndex} />
             </div>
             <FalsePositionTerminal run={run} activeIndex={activeIndex} />
           </div>
@@ -519,7 +522,7 @@ function FalsePositionSimulatorPage() {
             <p className={`bisection-conclusion false-position-conclusion ${run.converged ? "" : "is-warning"}`}>
               {run.converged ? <CircleCheck size={18} aria-hidden="true" /> : <TriangleAlert size={18} aria-hidden="true" />}
               <span>
-                <strong>{run.converged ? `Raiz aproximada: x ≈ ${formatNumber(run.root, 12)}` : "A aproximação ainda não atingiu a tolerância"}</strong>{" — "}
+                <strong>{run.converged ? `Raiz aproximada: x ≈ ${formatNumber(run.root, 12)}` : "A aproximação ainda não satisfez a regra de parada"}</strong>{" — "}
                 {reasonLabel(run.reason)}.
               </span>
             </p>
@@ -537,11 +540,11 @@ function FalsePositionSimulatorPage() {
               ponto médio: é onde a reta que liga (a, f(a)) e (b, f(b)) cruza o eixo x.
               Assim, a altura da função influencia o próximo palpite. O gráfico mantém
               o domínio inicial fixo para tornar visíveis tanto o encolhimento do cerco
-              quanto a trajetória de cₙ. Em funções muito assimétricas, um extremo pode
+              quanto a trajetória de xₙ. Em funções muito assimétricas, um extremo pode
               permanecer quase imóvel; esse fenômeno explica por que o método às vezes
               avança bem mais devagar de um dos lados. Por isso, o simulador confirma a
-              convergência pelo resíduo ou pela largura do cerco — nunca apenas por um
-              movimento pequeno de cₙ.
+              parada por |b − a| &lt; ε₁ e |f(xₙ)| &lt; ε₂. Você decide se basta um
+              dos testes (OU) ou se ambos precisam ser satisfeitos (E).
             </p>
           </div>
         </aside>

@@ -89,6 +89,19 @@ A rota /admin aparece no navegador, mas a proteção não depende apenas de esco
 
 Na área pública, PublicPortal busca disciplinas e materiais publicados. No Espaço Poincaré, cada página recebe os parâmetros do estudante, chama seu motor numérico e transforma as iterações em console, gráfico, controles de reprodução e tabela. Na área administrativa, AdminPage verifica login e permissão antes de abrir os formulários.
 
+## Convenções dos métodos numéricos
+
+Os quatro simuladores registram o estado inicial na iteração 0. Um limite de `N` permite `N` atualizações além desse estado e, portanto, produz no máximo as linhas de 0 a `N`. Todas as comparações de precisão usam o operador estrito `<`; igualdade com ε não encerra o método. Uma raiz exata sempre encerra a execução.
+
+| Método | Colunas da tabela | Critério de precisão |
+|---|---|---|
+| Bisseção | Iteração, a, b, m, sinais de f(a), f(b) e f(m), b − a, Stop? | `b − a < ε` |
+| Falsa posição | Iteração, a, b, xₙ, sinais de f(a), f(b) e f(xₙ), `|b − a|`, `|f(xₙ)|`, Stop? | `|b − a| < ε₁` e/ou `|f(xₙ)| < ε₂` |
+| Ponto fixo | Iteração, xₙ, `|xₙ − xₙ₋₁|`, `|f(xₙ)|`, Stop? | `|xₙ − xₙ₋₁| < ε₁` e/ou `|f(xₙ)| < ε₂` |
+| Newton–Raphson | Iteração, xₙ, `|xₙ − xₙ₋₁|`, `|f(xₙ)|`, Stop? | `|xₙ − xₙ₋₁| < ε₁` e/ou `|f(xₙ)| < ε₂` |
+
+Falsa posição, ponto fixo e Newton–Raphson permitem combinar os dois critérios por `E` ou `OU`; `E` é o padrão. Na iteração 0 de ponto fixo e Newton, a variação ainda é indisponível: `OU` pode parar pelo resíduo, enquanto `E` exige ao menos a primeira atualização. No ponto fixo, `g(x)` produz a órbita e uma expressão independente `f(x)` mede o resíduo; as duas devem representar a mesma equação.
+
 ## Estrutura de arquivos
 
     .

@@ -52,6 +52,12 @@ function midpointBetween(a, b) {
   return Math.sign(a) === Math.sign(b) ? a + (b - a) / 2 : (a + b) / 2;
 }
 
+function functionSign(value) {
+  if (value === null || value === undefined) return null;
+  if (value === 0) return 0;
+  return value < 0 ? -1 : 1;
+}
+
 function evaluateAt(evaluate, x, location, iteration = null) {
   try {
     return evaluate(x);
@@ -142,29 +148,13 @@ export function runBisection({
     iterations,
   };
 
-  if (fLeft === 0) {
-    return makeResult(base, {
-      root: left,
-      fRoot: fLeft,
-      converged: true,
-      reason: "endpoint-root",
-      finalA: left,
-      finalB: left,
-    });
-  }
+  const initialEndpointRoot = fLeft === 0
+    ? { root: left, fRoot: fLeft }
+    : fRight === 0
+      ? { root: right, fRoot: fRight }
+      : null;
 
-  if (fRight === 0) {
-    return makeResult(base, {
-      root: right,
-      fRoot: fRight,
-      converged: true,
-      reason: "endpoint-root",
-      finalA: right,
-      finalB: right,
-    });
-  }
-
-  if (Math.sign(fLeft) === Math.sign(fRight)) {
+  if (!initialEndpointRoot && functionSign(fLeft) === functionSign(fRight)) {
     throw new BisectionError(
       "NO_SIGN_CHANGE",
       "f(a) e f(b) devem ter sinais opostos para garantir uma raiz no intervalo.",
@@ -176,26 +166,55 @@ export function runBisection({
   let lastMidpoint = midpointBetween(left, right);
   let lastFMidpoint = null;
 
-  for (let iteration = 1; iteration <= parsedMaxIterations; iteration += 1) {
+  // A linha 0 descreve o intervalo inicial. Cada passagem para a linha seguinte
+  // corresponde a uma redução efetivamente realizada; portanto, N atualizações
+  // produzem no máximo as linhas 0, 1, ..., N.
+  for (let iteration = 0; iteration <= parsedMaxIterations; iteration += 1) {
     const intervalWidth = right - left;
     const errorEstimate = intervalWidth / 2;
     const midpoint = midpointBetween(left, right);
-    const fMidpoint =
-      midpoint === left
-        ? fLeft
-        : midpoint === right
-          ? fRight
-          : evaluateAt(evaluate, midpoint, "midpoint", iteration);
+    let fMidpoint;
+
+    if (midpoint === left) {
+      fMidpoint = fLeft;
+    } else if (midpoint === right) {
+      fMidpoint = fRight;
+    } else if (initialEndpointRoot && iteration === 0) {
+      // Uma raiz na extremidade deve encerrar imediatamente, mesmo que a função
+      // não esteja definida no ponto médio (que não precisa ser usado no método).
+      try {
+        fMidpoint = evaluateAt(evaluate, midpoint, "midpoint", iteration);
+      } catch (error) {
+        if (!(error instanceof BisectionError) || error.code !== "FUNCTION_EVALUATION_ERROR") {
+          throw error;
+        }
+        fMidpoint = null;
+      }
+    } else {
+      fMidpoint = evaluateAt(evaluate, midpoint, "midpoint", iteration);
+    }
 
     lastMidpoint = midpoint;
     lastFMidpoint = fMidpoint;
 
+    const endpointRoot = iteration === 0 ? initialEndpointRoot : null;
+    const exactMidpointRoot = fMidpoint === 0;
+    const widthCriterionMet = intervalWidth < parsedTolerance;
+    const stop = Boolean(endpointRoot || exactMidpointRoot || widthCriterionMet);
+    const stopReason = endpointRoot
+      ? "endpoint-root"
+      : exactMidpointRoot
+        ? "exact-root"
+        : widthCriterionMet
+          ? "tolerance"
+          : null;
+    const machinePrecisionReached = midpoint === left || midpoint === right;
     let nextA = left;
     let nextB = right;
     let keptHalf = "none";
 
-    if (fMidpoint !== 0 && errorEstimate > parsedTolerance && midpoint !== left && midpoint !== right) {
-      if (Math.sign(fLeft) !== Math.sign(fMidpoint)) {
+    if (!stop && !machinePrecisionReached && iteration < parsedMaxIterations) {
+      if (functionSign(fLeft) !== functionSign(fMidpoint)) {
         nextB = midpoint;
         keptHalf = "left";
       } else {
@@ -210,16 +229,36 @@ export function runBisection({
       b: right,
       fA: fLeft,
       fB: fRight,
+      signFA: functionSign(fLeft),
+      signFB: functionSign(fRight),
       intervalWidth,
+      intervalCriterionMet: widthCriterionMet,
+      widthCriterionMet,
       midpoint,
+      m: midpoint,
       fMidpoint,
+      signFMidpoint: functionSign(fMidpoint),
+      signFM: functionSign(fMidpoint),
       errorEstimate,
+      stop,
+      stopReason,
       keptHalf,
       nextA,
       nextB,
     });
 
-    if (fMidpoint === 0) {
+    if (endpointRoot) {
+      return makeResult(base, {
+        root: endpointRoot.root,
+        fRoot: endpointRoot.fRoot,
+        converged: true,
+        reason: "endpoint-root",
+        finalA: endpointRoot.root,
+        finalB: endpointRoot.root,
+      });
+    }
+
+    if (exactMidpointRoot) {
       return makeResult(base, {
         root: midpoint,
         fRoot: fMidpoint,
@@ -230,7 +269,7 @@ export function runBisection({
       });
     }
 
-    if (errorEstimate <= parsedTolerance) {
+    if (widthCriterionMet) {
       return makeResult(base, {
         root: midpoint,
         fRoot: fMidpoint,
@@ -241,12 +280,23 @@ export function runBisection({
       });
     }
 
-    if (midpoint === left || midpoint === right) {
+    if (machinePrecisionReached) {
       return makeResult(base, {
         root: midpoint,
         fRoot: fMidpoint,
         converged: false,
         reason: "machine-precision",
+        finalA: left,
+        finalB: right,
+      });
+    }
+
+    if (iteration === parsedMaxIterations) {
+      return makeResult(base, {
+        root: midpoint,
+        fRoot: fMidpoint,
+        converged: false,
+        reason: "max-iterations",
         finalA: left,
         finalB: right,
       });
@@ -261,6 +311,7 @@ export function runBisection({
     }
   }
 
+  // O laço sempre retorna por convergência, precisão da máquina ou limite.
   return makeResult(base, {
     root: lastMidpoint,
     fRoot: lastFMidpoint,

@@ -62,12 +62,14 @@ function percentile(values, position) {
 
 function trajectoryFor(iterations, initialX, count = iterations.length) {
   const values = [];
-  const first = finite(initialX) ?? finite(iterations[0]?.xCurrent);
-  if (first !== null) values.push(first);
   iterations.slice(0, count).forEach((step) => {
-    const value = finite(step?.xNext);
+    const value = finite(step?.x);
     if (value !== null) values.push(value);
   });
+  if (!values.length) {
+    const first = finite(initialX);
+    if (first !== null) values.push(first);
+  }
   return values;
 }
 
@@ -98,7 +100,7 @@ function getSquareDomain(run, visibleIterations) {
   const [initialMinimum, initialMaximum] = initialDomain(run, visibleIterations);
   const initialSpan = initialMaximum - initialMinimum;
   const center = (initialMinimum + initialMaximum) / 2;
-  const probe = sampleFunction(run?.evaluate, initialMinimum, initialMaximum, 181);
+  const probe = sampleFunction(run?.evaluateIteration, initialMinimum, initialMaximum, 181);
   const yValues = probe.map((sample) => sample.y).filter((value) => value !== null);
   const robustLow = percentile(yValues, 0.04);
   const robustHigh = percentile(yValues, 0.96);
@@ -195,8 +197,8 @@ function FixedPointPlot({ run, activeIndex }) {
     [run, iterations],
   );
   const samples = useMemo(
-    () => sampleFunction(run?.evaluate, minimum, maximum),
-    [run?.evaluate, minimum, maximum],
+    () => sampleFunction(run?.evaluateIteration, minimum, maximum),
+    [run?.evaluateIteration, minimum, maximum],
   );
 
   if (!currentStep) {
@@ -218,8 +220,8 @@ function FixedPointPlot({ run, activeIndex }) {
   const axisY = minimum <= 0 && maximum >= 0 ? yScale(0) : plotBottom;
   const axisX = minimum <= 0 && maximum >= 0 ? xScale(0) : MARGIN.left;
   const cobwebSegments = visibleIterations.flatMap((step, index) => {
-    const from = finite(step.xCurrent);
-    const next = finite(step.xNext);
+    const from = finite(step.previousX);
+    const next = finite(step.x);
     if (from === null || next === null) return [];
     return [
       { key: `${index}-vertical`, x1: from, y1: from, x2: from, y2: next, active: index === currentIndex },
@@ -228,7 +230,6 @@ function FixedPointPlot({ run, activeIndex }) {
   });
   const derivative = finite(currentStep.derivativeEstimate);
   const contractive = derivative !== null ? Math.abs(derivative) < 1 : null;
-  const expression = String(run?.expression || "g(x)");
 
   const historyRight = WIDTH - HISTORY_MARGIN.right;
   const historyBottom = HISTORY_HEIGHT - HISTORY_MARGIN.bottom;
@@ -263,8 +264,8 @@ function FixedPointPlot({ run, activeIndex }) {
       >
         <title id={titleId}>Diagrama de teia do ponto fixo na iteração {currentStep.iteration}</title>
         <desc id={descriptionId}>
-          Gráfico de g de x e da reta y igual a x. A teia percorre {visibleIterations.length} iterações,
-          chegando a x igual a {formatNumber(currentStep.xNext)}.
+          Gráfico de g de x e da reta y igual a x. A trajetória está na iteração {currentStep.iteration},
+          com x igual a {formatNumber(currentStep.x)}.
         </desc>
         <defs>
           <clipPath id={clipId}>
@@ -281,7 +282,7 @@ function FixedPointPlot({ run, activeIndex }) {
           <line x1={MARGIN.left + 260} x2={MARGIN.left + 285} y1="27" y2="27" stroke={COLORS.cobweb} strokeWidth="2.5" />
           <text x={MARGIN.left + 294} y="31" fill={COLORS.ink} fontSize="11.5">teia xₙ</text>
           <text x={MARGIN.left} y="54" fill={COLORS.muted} fontSize="11">
-            i={currentStep.iteration} · xₙ₊₁={formatNumber(currentStep.xNext, 7)} · |g′| {derivative === null ? "não estimado" : `${contractive ? "<" : "≥"} 1`}
+            i={currentStep.iteration} · xₙ={formatNumber(currentStep.x, 7)} · |g′| {derivative === null ? "não estimado" : `${contractive ? "<" : "≥"} 1`}
           </text>
         </g>
 
@@ -354,7 +355,7 @@ function FixedPointPlot({ run, activeIndex }) {
           aria-labelledby={`${historyTitleId} ${historyDescriptionId}`}
           style={{ display: "block", width: "100%", height: "auto" }}
         >
-          <title id={historyTitleId}>Histórico das aproximações até x {visibleTrajectory.length - 1}</title>
+          <title id={historyTitleId}>Histórico das aproximações até x {currentStep.iteration}</title>
           <desc id={historyDescriptionId}>
             Sequência com {visibleTrajectory.length} pontos, iniciando em {formatNumber(visibleTrajectory[0])} e chegando a {formatNumber(visibleTrajectory.at(-1))}.
           </desc>

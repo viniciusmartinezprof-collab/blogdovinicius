@@ -1,12 +1,11 @@
 import { useEffect, useRef } from "react";
 
 const COLUMNS = [
-  { label: "it", value: (step) => String(step.iteration ?? "—") },
-  { label: "x_n", value: (step) => formatNumber(step.xCurrent) },
-  { label: "g(x_n)", value: (step) => formatNumber(step.xNext) },
-  { label: "|Δx|", value: (step) => formatNumber(step.stepError) },
-  { label: "resíduo", value: (step) => formatNumber(step.residual) },
-  { label: "|g'|", value: (step) => formatDerivative(step.derivativeEstimate) },
+  { label: "Iteração", value: (step) => String(step.iteration ?? "—") },
+  { label: "x_n", value: (step) => formatNumber(step.x) },
+  { label: "|x_n-x_(n-1)|", value: (step) => formatNumber(step.delta) },
+  { label: "|f(x_n)|", value: (step) => formatNumber(step.residual) },
+  { label: "Stop?", value: (step) => (step.stop ? "sim" : "não") },
 ];
 
 function finite(value) {
@@ -24,11 +23,6 @@ function formatNumber(value, digits = 8) {
     return number.toExponential(6).replace(/\.0+(?=e)/, "").replace(/(\.\d*?[1-9])0+(?=e)/, "$1").replace("e+", "e");
   }
   return Number(number.toPrecision(digits)).toString();
-}
-
-function formatDerivative(value) {
-  const derivative = finite(value);
-  return derivative === null ? "n/e" : formatNumber(Math.abs(derivative), 7);
 }
 
 function normalizeReason(reason) {
@@ -67,53 +61,78 @@ function describeLocalBehavior(step) {
     return {
       kind: "is-validation",
       icon: "↘",
-      text: `Contração local ${strength}: |g′(xₙ₊₁)| ≈ ${formatNumber(magnitude, 6)} < 1. Perturbações tendem a encolher.`,
+      text: `Contração local ${strength}: |g′(xₙ)| ≈ ${formatNumber(magnitude, 6)} < 1. Perturbações tendem a encolher.`,
     };
   }
 
   return {
     kind: "is-warning",
     icon: "↗",
-    text: `Alerta local: |g′(xₙ₊₁)| ≈ ${formatNumber(magnitude, 6)} ≥ 1. Erros podem crescer e a convergência não está garantida.`,
+    text: `Alerta local: |g′(xₙ)| ≈ ${formatNumber(magnitude, 6)} ≥ 1. Erros podem crescer e a convergência não está garantida.`,
   };
+}
+
+function describeCriteria(run, step) {
+  if (!step) return null;
+  const criterion1 = step.delta === null
+    ? "C1 indisponível em n=0"
+    : `C1 ${step.criterion1Met ? "✓" : "×"}: ${formatNumber(step.delta)} < ε1`;
+  const criterion2 = `C2 ${step.criterion2Met ? "✓" : "×"}: ${formatNumber(step.residual)} < ε2`;
+  const mode = run?.stopMode === "any" ? "OU" : "E";
+  return `${criterion1}; ${criterion2}; regra ${mode}; Stop? ${step.stop ? "sim" : "não"}.`;
 }
 
 function describeResult(run, step) {
   const reason = normalizeReason(run?.reason);
-  const root = formatNumber(run?.root ?? step?.xNext, 11);
-  const residual = formatNumber(Math.abs(finite(run?.residual ?? step?.residual) ?? NaN), 7);
-  const count = run?.iterations?.length ?? 0;
-  const iterationLabel = count === 1 ? "iteração" : "iterações";
+  const root = formatNumber(run?.root ?? step?.x, 11);
+  const residual = formatNumber(run?.residual ?? step?.residual, 7);
+  const updates = step?.iteration ?? 0;
+  const updateLabel = updates === 1 ? "atualização" : "atualizações";
 
-  if (reason === "exact-fixed-point" || reason === "exact-root") {
-    return { warning: false, text: `Ponto fixo exato encontrado em ${count} ${iterationLabel}: x = ${root}.` };
+  if (reason === "exact-root") {
+    return { warning: false, text: `Raiz exata encontrada após ${updates} ${updateLabel}: x = ${root}.` };
   }
-  if (reason === "step-size" || reason === "tolerance") {
+  if (reason === "both-criteria") {
     return {
       warning: false,
-      text: `Passo e resíduo ≤ ε após ${count} ${iterationLabel}. x* ≈ ${root}; |g(x*) − x*| ≈ ${residual}.`,
+      text: `As duas precisões foram atingidas após ${updates} ${updateLabel}. x* ≈ ${root}; |f(x*)| ≈ ${residual}.`,
+    };
+  }
+  if (reason === "step-tolerance") {
+    return {
+      warning: false,
+      text: `A precisão do passo foi atingida pela regra OU após ${updates} ${updateLabel}. x* ≈ ${root}; |f(x*)| ≈ ${residual}.`,
+    };
+  }
+  if (reason === "residual-tolerance") {
+    return {
+      warning: false,
+      text: `A precisão do resíduo foi atingida pela regra OU após ${updates} ${updateLabel}. x* ≈ ${root}; |f(x*)| ≈ ${residual}.`,
     };
   }
   if (reason === "divergence") {
     return {
       warning: true,
-      text: `Divergência detectada após ${count} ${iterationLabel}. A órbita se afastou ou deixou de produzir valores finitos; último x ≈ ${root}.`,
+      text: `Divergência detectada após ${updates} ${updateLabel}. A órbita se afastou; último x ≈ ${root}.`,
     };
   }
   if (reason === "machine-precision") {
     return {
       warning: true,
-      text: `A precisão numérica da máquina impediu avanço adicional. Último x ≈ ${root}.`,
+      text: `A precisão numérica da máquina impediu avanço adicional sem satisfazer a regra de parada. Último x ≈ ${root}.`,
     };
+  }
+  if (reason === "numeric-failure") {
+    return { warning: true, text: `A sequência excedeu os limites numéricos. Último x válido ≈ ${root}.` };
   }
   if (reason === "max-iterations") {
     return {
       warning: true,
-      text: `Limite de ${run?.maxIterations ?? count} ${iterationLabel} atingido sem satisfazer a tolerância. Último x ≈ ${root}.`,
+      text: `Limite de ${run?.maxIterations ?? updates} ${updateLabel} atingido sem satisfazer a regra de parada. Último x ≈ ${root}.`,
     };
   }
   if (run?.converged) {
-    return { warning: false, text: `Convergência alcançada: x* ≈ ${root}, com resíduo ≈ ${residual}.` };
+    return { warning: false, text: `Convergência alcançada: x* ≈ ${root}, com |f(x*)| ≈ ${residual}.` };
   }
   return { warning: true, text: `Execução encerrada sem convergência. Última aproximação: x ≈ ${root}.` };
 }
@@ -128,6 +147,7 @@ function FixedPointTerminal({ run, activeIndex }) {
   const atEnd = Boolean(run) && (iterations.length === 0 || visibleCount === iterations.length);
   const table = buildTable(visible, iterations);
   const localBehavior = describeLocalBehavior(activeStep);
+  const criteria = describeCriteria(run, activeStep);
   const result = atEnd ? describeResult(run, iterations.at(-1)) : null;
 
   useEffect(() => {
@@ -159,23 +179,27 @@ function FixedPointTerminal({ run, activeIndex }) {
         {!run ? (
           <p className="fixed-point-terminal-line iteration-terminal-line is-muted">
             <span className="iteration-terminal-prompt" aria-hidden="true">$</span>{" "}
-            Configure g(x) e o chute x₀ para iniciar.
+            Configure f(x), g(x) e o chute x₀ para iniciar.
           </p>
         ) : (
           <>
             <p className="fixed-point-terminal-line iteration-terminal-line is-command">
               <span className="iteration-terminal-prompt" aria-hidden="true">&gt;&gt;&gt;</span>{" "}
-              <code>g = lambda x: {run.expression || "g(x)"}</code>
+              <code>f = lambda x: {run.functionExpression || "f(x)"}</code>
+            </p>
+            <p className="fixed-point-terminal-line iteration-terminal-line is-command">
+              <span className="iteration-terminal-prompt" aria-hidden="true">&gt;&gt;&gt;</span>{" "}
+              <code>g = lambda x: {run.iterationExpression || "g(x)"}</code>
             </p>
             <p className="fixed-point-terminal-line iteration-terminal-line is-command">
               <span className="iteration-terminal-prompt" aria-hidden="true">&gt;&gt;&gt;</span>{" "}
               <code>
-                ponto_fixo(g, x0={formatNumber(run.initialX)}, tol={formatNumber(run.tolerance)}, max_iter={run.maxIterations ?? "—"})
+                ponto_fixo(f, g, x0={formatNumber(run.initialX)}, eps1={formatNumber(run.epsilon1)}, eps2={formatNumber(run.epsilon2)}, modo="{run.stopMode === "any" ? "OU" : "E"}", max_updates={run.maxIterations ?? "—"})
               </code>
             </p>
             <p className="fixed-point-terminal-line iteration-terminal-line is-validation">
               <span aria-hidden="true">✓</span>{" "}
-              Estado inicial aceito. Aplicando xₙ₊₁ = g(xₙ) e monitorando passo, resíduo e derivada local.
+              Estado x₀ registrado. Aplicando xₙ₊₁ = g(xₙ) e medindo o resíduo com f(xₙ).
             </p>
 
             <div className="fixed-point-terminal-table-wrap iteration-terminal-table-wrap" style={{ overflowX: "auto" }} tabIndex={0}>
@@ -190,8 +214,15 @@ function FixedPointTerminal({ run, activeIndex }) {
             {activeStep ? (
               <p className="fixed-point-terminal-line iteration-terminal-line is-decision" key={`mapping-${activeStep.iteration}`}>
                 <span aria-hidden="true">→</span>{" "}
-                x{activeStep.iteration - 1} = {formatNumber(activeStep.xCurrent)} ⟼ g(x{activeStep.iteration - 1}) = x{activeStep.iteration} = {formatNumber(activeStep.xNext)};
-                passo = {formatNumber(activeStep.stepError)}.
+                {activeStep.iteration === 0
+                  ? `x0 = ${formatNumber(activeStep.x)} é o estado inicial; a variação ainda não está disponível.`
+                  : `x${activeStep.iteration} = g(x${activeStep.iteration - 1}) = ${formatNumber(activeStep.x)}; passo = ${formatNumber(activeStep.delta)}.`}
+              </p>
+            ) : null}
+
+            {criteria ? (
+              <p className="fixed-point-terminal-line iteration-terminal-line is-decision" key={`criteria-${activeStep?.iteration}`}>
+                <span aria-hidden="true">◇</span>{" "}{criteria}
               </p>
             ) : null}
 

@@ -68,6 +68,22 @@ function MiniFixedPointPlot() {
   );
 }
 
+function MiniNewtonRaphsonPlot() {
+  return (
+    <svg className="poincare-card-plot" viewBox="0 0 420 150">
+      <MiniGrid />
+      <path className="poincare-card-axis" d="M20 103H400M58 139V14" />
+      <path className="poincare-card-curve is-newton" d="M27 130 C92 123, 127 108, 168 79 S250 24, 295 47 S347 89, 395 20" />
+      <path className="poincare-card-tangent" d="M116 137L337 19" />
+      <path className="poincare-card-projection" d="M252 64V103M180 103V137" />
+      <circle className="poincare-card-endpoint" cx="252" cy="64" r="5" />
+      <circle className="poincare-card-root" cx="180" cy="103" r="5" />
+      <text x="243" y="55">(xₙ, f(xₙ))</text>
+      <text x="169" y="95">xₙ₊₁</text>
+    </svg>
+  );
+}
+
 const tools = [
   {
     to: "/espaco-poincare/bissecao",
@@ -106,6 +122,19 @@ const tools = [
     features: [
       { Icon: Waypoints, label: "Diagrama de teia" },
       { Icon: Activity, label: "Diagnóstico local" },
+    ],
+  },
+  {
+    to: "/espaco-poincare/newton-raphson",
+    number: "04",
+    title: "Método de Newton–Raphson",
+    description: "Trace a tangente a partir de um chute inicial e acompanhe suas interseções se aproximarem de uma raiz.",
+    formula: "xₙ₊₁ = xₙ − f(xₙ) / f′(xₙ)",
+    modifier: "is-newton",
+    Plot: MiniNewtonRaphsonPlot,
+    features: [
+      { Icon: ChartSpline, label: "Geometria da tangente" },
+      { Icon: Activity, label: "Histórico do resíduo" },
     ],
   },
 ];

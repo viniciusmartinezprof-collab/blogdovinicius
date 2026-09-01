@@ -16,6 +16,7 @@ Para estudantes:
 - simula o método da bisseção com console, gráfico e histórico de intervalos;
 - simula o método da falsa posição com secantes, intervalos retidos, console e histórico completo;
 - simula o método do ponto fixo com teia de aranha, órbita das aproximações e diagnóstico de convergência ou divergência;
+- simula o método de Newton–Raphson com tangentes, derivada numérica e histórico do resíduo;
 - adapta o layout para celular.
 
 Para o administrador:
@@ -66,6 +67,7 @@ Imagine que o portal é uma biblioteca.
 | /espaco-poincare/bissecao | Sim | Simulador interativo do método da bisseção. |
 | /espaco-poincare/falsa-posicao | Sim | Simulador interativo do método da falsa posição. |
 | /espaco-poincare/ponto-fixo | Sim | Simulador interativo do método do ponto fixo. |
+| /espaco-poincare/newton-raphson | Sim | Simulador interativo do método de Newton–Raphson. |
 | /admin | Não | Login e painel administrativo. |
 
 A rota /admin aparece no navegador, mas a proteção não depende apenas de escondê-la. O Supabase verifica se a conta autenticada é administradora antes de aceitar alterações.
@@ -82,6 +84,7 @@ A rota /admin aparece no navegador, mas a proteção não depende apenas de esco
            → /espaco-poincare/bissecao abre pages/BisectionSimulatorPage.jsx
            → /espaco-poincare/falsa-posicao abre pages/FalsePositionSimulatorPage.jsx
            → /espaco-poincare/ponto-fixo abre pages/FixedPointSimulatorPage.jsx
+           → /espaco-poincare/newton-raphson abre pages/NewtonRaphsonSimulatorPage.jsx
            → /admin abre pages/AdminPage.jsx
 
 Na área pública, PublicPortal busca disciplinas e materiais publicados. No Espaço Poincaré, cada página recebe os parâmetros do estudante, chama seu motor numérico e transforma as iterações em console, gráfico, controles de reprodução e tabela. Na área administrativa, AdminPage verifica login e permissão antes de abrir os formulários.
@@ -104,7 +107,8 @@ Na área pública, PublicPortal busca disciplinas e materiais publicados. No Esp
     │   │   ├── bisection.js             calcula e registra as iterações da bisseção
     │   │   ├── falsePosition.js         calcula secantes e intervalos da falsa posição
     │   │   ├── fixedPoint.js            calcula a órbita e diagnostica o ponto fixo
-    │   │   └── *.test.js                testa o interpretador e os três métodos
+    │   │   ├── newtonRaphson.js         calcula tangentes e aproximações de Newton
+    │   │   └── *.test.js                testa o interpretador e os quatro métodos
     │   ├── data/
     │   │   ├── portalApi.js             lê, grava, atualiza e envia arquivos
     │   │   ├── courses.js               arquivo legado, não usado hoje
@@ -116,17 +120,20 @@ Na área pública, PublicPortal busca disciplinas e materiais publicados. No Esp
     │   │   ├── BisectionSimulatorPage.jsx laboratório interativo da bisseção
     │   │   ├── FalsePositionSimulatorPage.jsx laboratório interativo da falsa posição
     │   │   ├── FixedPointSimulatorPage.jsx laboratório interativo do ponto fixo
+    │   │   ├── NewtonRaphsonSimulatorPage.jsx laboratório interativo de Newton–Raphson
     │   │   └── AdminPage.jsx            login e administração de materiais
     │   └── components/
     │       ├── CourseCatalog.jsx        catálogo inicial
     │       ├── PoincareSpace.jsx        catálogo de simuladores do Espaço Poincaré
-    │       ├── poincare/                gráficos e terminais dos três simuladores
+    │       ├── poincare/                gráficos e terminais dos quatro simuladores
     │       │   ├── BisectionPlot.jsx    curva e intervalos da bisseção
     │       │   ├── IterationTerminal.jsx console de iterações da bisseção
     │       │   ├── FalsePositionPlot.jsx curva, secante e intervalo retido
     │       │   ├── FalsePositionTerminal.jsx console da falsa posição
     │       │   ├── FixedPointPlot.jsx   curvas y = g(x), y = x e teia de aranha
-    │       │   └── FixedPointTerminal.jsx console da órbita do ponto fixo
+    │       │   ├── FixedPointTerminal.jsx console da órbita do ponto fixo
+    │       │   ├── NewtonRaphsonPlot.jsx curva, tangente e histórico do resíduo
+    │       │   └── NewtonRaphsonTerminal.jsx console das tangentes de Newton
     │       ├── Header.jsx               cabeçalho e busca
     │       ├── PostCard.jsx             card de material
     │       ├── AdminCourseManager.jsx   CRUD de disciplinas
@@ -150,7 +157,8 @@ Os arquivos courses.js e lessons.js não são mais a fonte oficial do portal. El
 | BisectionSimulatorPage.jsx | Executa a experiência interativa da bisseção. | App.jsx |
 | FalsePositionSimulatorPage.jsx | Coordena parâmetros, reprodução, gráfico, console e tabela da falsa posição. | App.jsx |
 | FixedPointSimulatorPage.jsx | Coordena a órbita, a teia de aranha e o diagnóstico do ponto fixo. | App.jsx |
-| bisection.js, falsePosition.js e fixedPoint.js | Validam os dados, executam os métodos numéricos e registram cada iteração. | Páginas dos simuladores |
+| NewtonRaphsonSimulatorPage.jsx | Coordena as tangentes, a reprodução e o diagnóstico de Newton–Raphson. | App.jsx |
+| bisection.js, falsePosition.js, fixedPoint.js e newtonRaphson.js | Validam os dados, executam os métodos numéricos e registram cada iteração. | Páginas dos simuladores |
 | componentes em poincare/ | Representam visualmente as iterações em gráficos SVG e consoles didáticos. | Páginas dos simuladores |
 | AdminPage.jsx | Login e formulário de materiais. | App.jsx |
 | AdminCourseManager.jsx | Formulário e lista de disciplinas. | AdminPage.jsx |
@@ -283,7 +291,7 @@ Esse comando cria ou atualiza a pasta dist. Não edite essa pasta manualmente.
 
     npm test
 
-Os testes cobrem o interpretador de funções, as validações, os principais critérios de parada dos três métodos e a detecção de divergência do ponto fixo.
+Os testes cobrem o interpretador de funções, as validações e os principais critérios de parada dos quatro métodos, incluindo divergência e ciclos.
 
 ### Pré-visualizar a versão compilada
 

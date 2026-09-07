@@ -850,9 +850,11 @@ body {
 .poincare-tool-card.is-false-position { border-left-color: #75aeda; }
 .poincare-tool-card.is-fixed-point { border-left-color: #ad8bd0; }
 .poincare-tool-card.is-newton { border-left-color: #df8b74; }
+.poincare-tool-card.is-secant { border-left-color: #e5b85e; }
 .poincare-tool-card.is-false-position:hover { border-color: #75aeda; box-shadow: 10px 11px 0 rgba(53, 112, 157, 0.22); }
 .poincare-tool-card.is-fixed-point:hover { border-color: #ad8bd0; box-shadow: 10px 11px 0 rgba(108, 75, 145, 0.24); }
 .poincare-tool-card.is-newton:hover { border-color: #df8b74; box-shadow: 10px 11px 0 rgba(150, 76, 58, 0.24); }
+.poincare-tool-card.is-secant:hover { border-color: #e5b85e; box-shadow: 10px 11px 0 rgba(143, 103, 31, 0.24); }
 .poincare-tool-link {
   display: grid;
   grid-template-rows: 220px minmax(345px, 1fr);
@@ -889,7 +891,7 @@ body {
 .poincare-card-axis { fill: none; stroke: rgba(205, 224, 238, 0.48); stroke-width: 1; }
 .poincare-card-interval { fill: url(#poincare-bisection-gradient); }
 .poincare-card-curve { fill: none; stroke: #e7bd69; stroke-linecap: round; stroke-width: 3; }
-.poincare-card-curve.is-false-position, .poincare-card-curve.is-fixed-point, .poincare-card-curve.is-newton { stroke: #79bce7; }
+.poincare-card-curve.is-false-position, .poincare-card-curve.is-fixed-point, .poincare-card-curve.is-newton, .poincare-card-curve.is-secant { stroke: #79bce7; }
 .poincare-card-bracket { fill: none; stroke: #65c8bd; stroke-width: 2; }
 .poincare-card-secant { fill: none; stroke: #e7bd69; stroke-dasharray: 6 4; stroke-width: 2; }
 .poincare-card-projection { fill: none; stroke: #e7bd69; stroke-dasharray: 3 3; stroke-width: 1.5; }

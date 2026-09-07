@@ -9,6 +9,7 @@ const FixedPointSimulatorPage = lazy(() => import("./pages/FixedPointSimulatorPa
 const NewtonRaphsonSimulatorPage = lazy(() => import("./pages/NewtonRaphsonSimulatorPage.jsx"));
 const PoincareHubPage = lazy(() => import("./pages/PoincareHubPage.jsx"));
 const PublicPortal = lazy(() => import("./pages/PublicPortal.jsx"));
+const SecantSimulatorPage = lazy(() => import("./pages/SecantSimulatorPage.jsx"));
 
 const PAGE_TITLES = {
   "/": "VMM Space",
@@ -18,6 +19,7 @@ const PAGE_TITLES = {
   "/espaco-poincare/falsa-posicao": "Falsa posição | Espaço Poincaré",
   "/espaco-poincare/ponto-fixo": "Ponto fixo | Espaço Poincaré",
   "/espaco-poincare/newton-raphson": "Newton–Raphson | Espaço Poincaré",
+  "/espaco-poincare/secantes": "Método das secantes | Espaço Poincaré",
   "/admin": "Administração | VMM Space",
 };
 
@@ -55,6 +57,7 @@ function App() {
           <Route path="/espaco-poincare/falsa-posicao" element={<FalsePositionSimulatorPage />} />
           <Route path="/espaco-poincare/ponto-fixo" element={<FixedPointSimulatorPage />} />
           <Route path="/espaco-poincare/newton-raphson" element={<NewtonRaphsonSimulatorPage />} />
+          <Route path="/espaco-poincare/secantes" element={<SecantSimulatorPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

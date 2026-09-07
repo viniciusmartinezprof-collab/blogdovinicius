@@ -194,7 +194,7 @@ function Endpoint({ x, y, label, square = false }) {
   );
 }
 
-function EmptyPlot({ titleId, descriptionId }) {
+function EmptyPlot({ titleId, descriptionId, copy }) {
   return (
     <svg
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
@@ -204,8 +204,8 @@ function EmptyPlot({ titleId, descriptionId }) {
       aria-labelledby={`${titleId} ${descriptionId}`}
       style={{ display: "block", width: "100%", height: "auto" }}
     >
-      <title id={titleId}>Gráfico da falsa posição aguardando dados</title>
-      <desc id={descriptionId}>Execute uma simulação para visualizar a função, as secantes e os intervalos exibidos.</desc>
+      <title id={titleId}>{copy.emptyTitle}</title>
+      <desc id={descriptionId}>{copy.emptyDescription}</desc>
       <rect x="0.5" y="0.5" width={WIDTH - 1} height={HEIGHT - 1} fill={COLORS.background} stroke={COLORS.border} />
       <line x1={MARGIN.left} x2={WIDTH - MARGIN.right} y1={HEIGHT / 2} y2={HEIGHT / 2} stroke={COLORS.axis} opacity="0.45" />
       <text x={WIDTH / 2} y={HEIGHT / 2 + 46} fill={COLORS.muted} fontFamily="IBM Plex Mono, monospace" fontSize="15" textAnchor="middle">
@@ -215,7 +215,28 @@ function EmptyPlot({ titleId, descriptionId }) {
   );
 }
 
-function FalsePositionPlot({ run, activeIndex }) {
+function FalsePositionPlot({ run, activeIndex, variant = "false-position" }) {
+  const copy = variant === "secant"
+    ? {
+        emptyTitle: "Gráfico do método das secantes aguardando dados",
+        emptyDescription: "Execute uma simulação para visualizar a função, a secante entre dois chutes e a próxima aproximação.",
+        plotTitle: "Método das secantes",
+        descriptionPrefix: "A secante liga os dois pontos ativos",
+        historyTitle: "Histórico das secantes",
+        historyDescription: "pares de pontos ativos exibidos no domínio dos chutes. Os losangos mostram as aproximações produzidas pelas secantes.",
+        historyHeading: "PARES ATIVOS + TRAJETÓRIA DE xₙ",
+        historySubheading: "cada faixa liga os dois pontos usados para formar a secante",
+      }
+    : {
+        emptyTitle: "Gráfico da falsa posição aguardando dados",
+        emptyDescription: "Execute uma simulação para visualizar a função, as secantes e os intervalos exibidos.",
+        plotTitle: "Método da falsa posição",
+        descriptionPrefix: "A secante liga",
+        historyTitle: "Histórico da falsa posição",
+        historyDescription: "intervalos exibidos no domínio inicial fixo. Os losangos mostram as estimativas produzidas pelas secantes.",
+        historyHeading: "INTERVALOS EXIBIDOS + TRAJETÓRIA DE xₙ",
+        historySubheading: "domínio inicial fixo · cada faixa corresponde à linha da tabela",
+      };
   const generatedId = useId().replace(/:/g, "");
   const plotTitleId = `false-position-plot-title-${generatedId}`;
   const plotDescriptionId = `false-position-plot-description-${generatedId}`;
@@ -240,7 +261,7 @@ function FalsePositionPlot({ run, activeIndex }) {
   if (!currentStep) {
     return (
       <figure className="bisection-visualization false-position-visualization" style={{ margin: 0 }}>
-        <EmptyPlot titleId={plotTitleId} descriptionId={plotDescriptionId} />
+        <EmptyPlot titleId={plotTitleId} descriptionId={plotDescriptionId} copy={copy} />
       </figure>
     );
   }
@@ -299,9 +320,9 @@ function FalsePositionPlot({ run, activeIndex }) {
         aria-labelledby={`${plotTitleId} ${plotDescriptionId}`}
         style={{ display: "block", width: "100%", height: "auto" }}
       >
-        <title id={plotTitleId}>Método da falsa posição, iteração {iterationLabel}</title>
+        <title id={plotTitleId}>{copy.plotTitle}, iteração {iterationLabel}</title>
         <desc id={plotDescriptionId}>
-          Gráfico de {expression}. A secante liga ({formatNumber(a)}, {formatNumber(fA)}) a ({formatNumber(b)}, {formatNumber(fB)})
+          Gráfico de {expression}. {copy.descriptionPrefix} ({formatNumber(a)}, {formatNumber(fA)}) a ({formatNumber(b)}, {formatNumber(fB)})
           e cruza o eixo x em x_n igual a {formatNumber(estimate)}, onde f(x_n) vale {formatNumber(fEstimate)}.
         </desc>
         <defs>
@@ -424,16 +445,16 @@ function FalsePositionPlot({ run, activeIndex }) {
           aria-labelledby={`${historyTitleId} ${historyDescriptionId}`}
           style={{ display: "block", width: "100%", height: "auto" }}
         >
-          <title id={historyTitleId}>Histórico da falsa posição até a iteração {iterationLabel}</title>
+          <title id={historyTitleId}>{copy.historyTitle} até a iteração {iterationLabel}</title>
           <desc id={historyDescriptionId}>
-            {visibleHistory.length} intervalos exibidos no domínio inicial fixo. Os losangos mostram as estimativas produzidas pelas secantes.
+            {visibleHistory.length} {copy.historyDescription}
           </desc>
           <rect width={HISTORY_WIDTH} height={historyHeight} fill={COLORS.background} />
           <text x={HISTORY_MARGIN.left} y="25" fill={COLORS.ink} fontFamily="IBM Plex Mono, Courier New, monospace" fontSize="12" fontWeight="500">
-            INTERVALOS EXIBIDOS + TRAJETÓRIA DE xₙ
+            {copy.historyHeading}
           </text>
           <text x={HISTORY_MARGIN.left} y="43" fill={COLORS.muted} fontFamily="IBM Plex Mono, Courier New, monospace" fontSize="9.5">
-            domínio inicial fixo · cada faixa corresponde à linha da tabela
+            {copy.historySubheading}
           </text>
 
           <line x1={historyScale(initialA)} x2={historyScale(initialB)} y1={HISTORY_MARGIN.top - 7} y2={HISTORY_MARGIN.top - 7} stroke={COLORS.axis} opacity="0.38" />

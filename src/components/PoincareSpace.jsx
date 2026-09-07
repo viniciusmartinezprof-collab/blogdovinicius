@@ -84,6 +84,24 @@ function MiniNewtonRaphsonPlot() {
   );
 }
 
+function MiniSecantPlot() {
+  return (
+    <svg className="poincare-card-plot" viewBox="0 0 420 150">
+      <MiniGrid />
+      <path className="poincare-card-axis" d="M20 98H400M58 139V14" />
+      <path className="poincare-card-curve is-secant" d="M29 127 C88 118, 134 107, 174 82 S247 31, 294 51 S349 91, 395 18" />
+      <path className="poincare-card-secant" d="M118 112L318 39" />
+      <path className="poincare-card-projection" d="M253 63V98M178 98V130" />
+      <circle className="poincare-card-endpoint" cx="118" cy="112" r="5" />
+      <circle className="poincare-card-endpoint" cx="253" cy="63" r="5" />
+      <circle className="poincare-card-root" cx="178" cy="98" r="5" />
+      <text x="101" y="130">xₙ₋₁</text>
+      <text x="243" y="55">xₙ</text>
+      <text x="166" y="90">xₙ₊₁</text>
+    </svg>
+  );
+}
+
 const tools = [
   {
     to: "/espaco-poincare/bissecao",
@@ -135,6 +153,19 @@ const tools = [
     features: [
       { Icon: ChartSpline, label: "Geometria da tangente" },
       { Icon: Activity, label: "Histórico do resíduo" },
+    ],
+  },
+  {
+    to: "/espaco-poincare/secantes",
+    number: "05",
+    title: "Método das secantes",
+    description: "Use dois chutes livres para aproximar a derivada por uma reta secante e gerar a próxima raiz candidata.",
+    formula: "xₙ₊₁ = xₙ − f(xₙ)(xₙ − xₙ₋₁)/(f(xₙ) − f(xₙ₋₁))",
+    modifier: "is-secant",
+    Plot: MiniSecantPlot,
+    features: [
+      { Icon: GitCompareArrows, label: "Dois chutes livres" },
+      { Icon: Activity, label: "Inclinação sem derivada" },
     ],
   },
 ];

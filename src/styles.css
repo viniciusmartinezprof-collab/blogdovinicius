@@ -851,10 +851,14 @@ body {
 .poincare-tool-card.is-fixed-point { border-left-color: #ad8bd0; }
 .poincare-tool-card.is-newton { border-left-color: #df8b74; }
 .poincare-tool-card.is-secant { border-left-color: #e5b85e; }
+.poincare-tool-card.is-gaussian { border-left-color: #68c9be; }
+.poincare-tool-card.is-lu { border-left-color: #9fc76f; }
 .poincare-tool-card.is-false-position:hover { border-color: #75aeda; box-shadow: 10px 11px 0 rgba(53, 112, 157, 0.22); }
 .poincare-tool-card.is-fixed-point:hover { border-color: #ad8bd0; box-shadow: 10px 11px 0 rgba(108, 75, 145, 0.24); }
 .poincare-tool-card.is-newton:hover { border-color: #df8b74; box-shadow: 10px 11px 0 rgba(150, 76, 58, 0.24); }
 .poincare-tool-card.is-secant:hover { border-color: #e5b85e; box-shadow: 10px 11px 0 rgba(143, 103, 31, 0.24); }
+.poincare-tool-card.is-gaussian:hover { border-color: #68c9be; box-shadow: 10px 11px 0 rgba(32, 130, 122, 0.24); }
+.poincare-tool-card.is-lu:hover { border-color: #9fc76f; box-shadow: 10px 11px 0 rgba(94, 132, 54, 0.24); }
 .poincare-tool-link {
   display: grid;
   grid-template-rows: 220px minmax(345px, 1fr);
@@ -901,6 +905,10 @@ body {
 .poincare-card-tangent { fill: none; stroke: #e7bd69; stroke-linecap: round; stroke-width: 2.2; }
 .poincare-card-root { fill: #f1ca78; stroke: #082032; stroke-width: 3; }
 .poincare-card-plot text { fill: #8db8ce; font-family: "STIX Two Text", serif; font-size: 12px; font-style: italic; }
+.poincare-card-matrix text { fill: #cde9f1; font-family: "IBM Plex Mono", monospace; font-size: 11px; font-style: normal; }
+.poincare-card-matrix-cell { fill: rgba(13, 39, 57, 0.84); stroke: rgba(104, 201, 190, 0.28); stroke-width: 1; }
+.poincare-card-matrix-cell.is-pivot { fill: rgba(229, 184, 94, 0.42); stroke: #e5b85e; }
+.poincare-card-matrix-cell.is-result { fill: rgba(104, 201, 190, 0.2); }
 .poincare-tool-copy {
   display: flex;
   flex-direction: column;
@@ -1088,6 +1096,7 @@ body {
 }
 .bisection-form input,
 .bisection-form select,
+.bisection-form textarea,
 .bisection-speed select {
   width: 100%;
   min-height: 45px;
@@ -1100,12 +1109,20 @@ body {
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.88rem;
 }
+.bisection-form textarea {
+  min-height: 174px;
+  resize: vertical;
+  line-height: 1.55;
+  tab-size: 2;
+}
 .bisection-expression-input input { min-width: 0; border: 0; background: transparent; box-shadow: none; font-size: 1rem; }
 .bisection-form input:focus,
-.bisection-form select:focus { border-color: #e5b85e; box-shadow: 0 0 0 3px rgba(229, 184, 94, 0.16); }
+.bisection-form select:focus,
+.bisection-form textarea:focus { border-color: #e5b85e; box-shadow: 0 0 0 3px rgba(229, 184, 94, 0.16); }
 .bisection-expression-input input:focus { box-shadow: none; }
 .bisection-form input[aria-invalid="true"],
-.bisection-form select[aria-invalid="true"] { border-color: #e17b72; }
+.bisection-form select[aria-invalid="true"],
+.bisection-form textarea[aria-invalid="true"] { border-color: #e17b72; }
 .bisection-expression-input:has(input[aria-invalid="true"]) { border-color: #e17b72; }
 .bisection-form small { color: #8fa9bc; font-size: 0.76rem; font-weight: 400; }
 .bisection-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -1407,6 +1424,216 @@ body {
 .bisection-method-note h2 { margin: 0 0 4px; color: #e6f1f8; font-size: 1.25rem; font-weight: 600; }
 .bisection-method-note p { max-width: 920px; margin: 0; }
 
+.gaussian-form { grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr); }
+.gaussian-matrix-field { grid-row: span 3; }
+.gaussian-control-grid { align-content: start; grid-template-columns: 1fr; }
+.gaussian-matrix-stage {
+  display: grid;
+  min-height: 500px;
+  align-content: center;
+  gap: 18px;
+  padding: 20px;
+  background:
+    linear-gradient(rgba(104, 201, 190, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(104, 201, 190, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 50% 35%, rgba(104, 201, 190, 0.16), transparent 42%);
+  background-size: 28px 28px, 28px 28px, auto;
+}
+.gaussian-matrix-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  color: #aac4d7;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.gaussian-matrix-header code { color: #edc466; font-size: 0.72rem; }
+.gaussian-matrix-wrap {
+  max-width: 100%;
+  overflow: auto;
+  padding: 22px 18px;
+  border: 1px solid #2e526b;
+  background: rgba(4, 15, 25, 0.62);
+  scrollbar-color: #47738f #081a2a;
+  scrollbar-width: thin;
+}
+.gaussian-matrix {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--gaussian-columns), minmax(72px, 1fr));
+  gap: 8px;
+  min-width: max-content;
+  padding: 19px 22px;
+}
+.gaussian-matrix::before,
+.gaussian-matrix::after {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  width: 13px;
+  content: "";
+  border-color: #8eb6cc;
+  border-style: solid;
+}
+.gaussian-matrix::before { left: 0; border-width: 2px 0 2px 2px; }
+.gaussian-matrix::after { right: 0; border-width: 2px 2px 2px 0; }
+.gaussian-cell {
+  display: grid;
+  min-height: 48px;
+  place-items: center;
+  border: 1px solid #2f5872;
+  color: #e9f7ff;
+  background: #092337;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: clamp(0.78rem, 1.35vw, 0.96rem);
+  transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+.gaussian-cell.is-result {
+  border-color: rgba(104, 201, 190, 0.45);
+  color: #bdf1eb;
+  background: rgba(18, 68, 67, 0.58);
+}
+.gaussian-cell.is-pivot-row { border-color: rgba(229, 184, 94, 0.5); }
+.gaussian-cell.is-target-row {
+  border-color: rgba(104, 201, 190, 0.68);
+  background: rgba(22, 70, 76, 0.72);
+}
+.gaussian-cell.is-solved-row {
+  border-color: rgba(104, 201, 190, 0.7);
+  background: rgba(18, 77, 71, 0.78);
+}
+.gaussian-cell.is-pivot {
+  color: #07131f;
+  border-color: #edc466;
+  background: #edc466;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(229, 184, 94, 0.2);
+}
+.gaussian-cell.is-zeroing {
+  color: #07131f;
+  border-color: #68c9be;
+  background: #68c9be;
+}
+.gaussian-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px 16px;
+  color: #8fa9bc;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.gaussian-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.gaussian-legend i {
+  width: 11px;
+  height: 11px;
+  border: 1px solid #547996;
+  background: #092337;
+}
+.gaussian-legend i.is-pivot { border-color: #edc466; background: #edc466; }
+.gaussian-legend i.is-target { border-color: #68c9be; background: #16464c; }
+.gaussian-legend i.is-result { border-color: #68c9be; background: #124443; }
+.lu-stage {
+  display: grid;
+  min-height: 500px;
+  align-content: center;
+  gap: 18px;
+  padding: 20px;
+  background:
+    linear-gradient(rgba(159, 199, 111, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(159, 199, 111, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 50% 35%, rgba(159, 199, 111, 0.14), transparent 42%);
+  background-size: 28px 28px, 28px 28px, auto;
+}
+.lu-equation {
+  display: grid;
+  grid-template-columns: auto auto auto auto auto;
+  justify-content: center;
+  gap: 16px;
+  align-items: center;
+  overflow-x: auto;
+  padding: 20px 24px;
+  border: 1px solid #2e526b;
+  background: rgba(4, 15, 25, 0.62);
+  scrollbar-color: #47738f #081a2a;
+  scrollbar-width: thin;
+}
+.lu-symbol {
+  color: #edc466;
+  font-family: "STIX Two Text", serif;
+  font-size: clamp(1.8rem, 4vw, 3.1rem);
+  font-style: italic;
+  line-height: 1;
+  text-align: center;
+}
+.lu-matrix-block {
+  display: grid;
+  gap: 8px;
+  min-width: max-content;
+}
+.lu-matrix-label {
+  color: #aac4d7;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.lu-matrix {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--lu-columns), 34px);
+  gap: 5px;
+  padding: 13px 15px;
+}
+.lu-matrix::before,
+.lu-matrix::after {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 10px;
+  content: "";
+  border-color: #8eb6cc;
+  border-style: solid;
+}
+.lu-matrix::before { left: 0; border-width: 2px 0 2px 2px; }
+.lu-matrix::after { right: 0; border-width: 2px 2px 2px 0; }
+.lu-cell {
+  display: grid;
+  width: 34px;
+  min-height: 34px;
+  place-items: center;
+  border: 1px solid #2f5872;
+  color: #e9f7ff;
+  background: #092337;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+.lu-cell.is-lower { border-color: rgba(104, 201, 190, 0.5); background: rgba(18, 68, 67, 0.42); }
+.lu-cell.is-upper { border-color: rgba(159, 199, 111, 0.48); background: rgba(42, 67, 36, 0.5); }
+.lu-cell.is-swap { border-color: #df8b74; background: rgba(107, 50, 40, 0.58); }
+.lu-cell.is-pivot {
+  color: #07131f;
+  border-color: #edc466;
+  background: #edc466;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(229, 184, 94, 0.2);
+}
+.lu-cell.is-zeroing {
+  color: #07131f;
+  border-color: #68c9be;
+  background: #68c9be;
+}
+.lu-cell.is-multiplier {
+  color: #06141e;
+  border-color: #9fc76f;
+  background: #9fc76f;
+}
+
 @media (min-width: 1051px) and (max-height: 900px) {
   .page-shell.bisection-page { padding-top: 20px; padding-bottom: 38px; }
   .poincare-simulator-header { min-height: 310px; padding: 27px 38px 31px; }
@@ -1422,7 +1649,9 @@ body {
   .bisection-section-heading h2 { font-size: clamp(1.55rem, 2.4vw, 2.05rem); }
   .bisection-form { gap: 13px 22px; margin-top: 19px; }
   .bisection-form input,
-  .bisection-form select { min-height: 42px; padding-block: 8px; }
+  .bisection-form select,
+  .bisection-form textarea { min-height: 42px; padding-block: 8px; }
+  .bisection-form textarea { min-height: 150px; }
   .bisection-form-grid { gap: 10px; }
   .bisection-examples { gap: 6px; }
   .bisection-run-button { min-height: 44px; padding-block: 9px; }
@@ -1435,6 +1664,7 @@ body {
 
 @media (max-width: 1050px) {
   .bisection-form { grid-template-columns: minmax(0, 1fr) minmax(360px, 0.9fr); }
+  .gaussian-form { grid-template-columns: minmax(0, 1fr) minmax(330px, 0.86fr); }
   .iteration-terminal { min-height: 480px; max-height: 600px; }
 }
 
@@ -1447,10 +1677,12 @@ body {
 @media (max-width: 780px) {
   .poincare-home-intro,
   .poincare-tool-link,
-  .bisection-form { grid-template-columns: 1fr; }
+  .bisection-form,
+  .gaussian-form { grid-template-columns: 1fr; }
   .poincare-home-intro { gap: 14px; }
   .poincare-tool-visual { min-height: 245px; border-right: 0; border-bottom: 1px solid rgba(91, 192, 181, 0.3); }
   .bisection-function-field { grid-row: auto; }
+  .gaussian-matrix-field { grid-row: auto; }
   .bisection-examples,
   .bisection-form-note,
   .bisection-form-error,
@@ -1498,6 +1730,13 @@ body {
   .bisection-controls button:first-child { width: 44px; }
   .bisection-speed { width: 100%; }
   .bisection-speed select { width: 100%; }
+  .gaussian-matrix-stage { min-height: 410px; padding: 14px; }
+  .gaussian-matrix { grid-template-columns: repeat(var(--gaussian-columns), minmax(62px, 1fr)); gap: 6px; padding-inline: 17px; }
+  .gaussian-cell { min-height: 42px; }
+  .lu-stage { min-height: 430px; padding: 14px; }
+  .lu-equation { justify-content: flex-start; gap: 12px; padding: 14px 18px; }
+  .lu-matrix { grid-template-columns: repeat(var(--lu-columns), 31px); gap: 4px; padding-inline: 13px; }
+  .lu-cell { width: 31px; min-height: 31px; font-size: 0.66rem; }
   .iteration-terminal { min-height: min(480px, 68vh); max-height: 560px; }
   .iteration-terminal-body { padding: 13px 12px 17px; }
   .bisection-method-note { padding: 19px; }

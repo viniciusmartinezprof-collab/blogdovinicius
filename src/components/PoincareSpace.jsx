@@ -3,6 +3,7 @@ import {
   ArrowUpRight,
   ChartSpline,
   GitCompareArrows,
+  Grid3X3,
   Terminal,
   Waypoints,
 } from "lucide-react";
@@ -102,6 +103,76 @@ function MiniSecantPlot() {
   );
 }
 
+function MiniGaussianPlot() {
+  const cells = [
+    ["2", "1", "−1", "8"],
+    ["0", "0.5", "0.5", "1"],
+    ["0", "0", "−1", "1"],
+  ];
+
+  return (
+    <svg className="poincare-card-plot poincare-card-matrix" viewBox="0 0 420 150">
+      <MiniGrid />
+      <path className="poincare-card-bracket" d="M95 25H85V125H95M330 25H340V125H330" />
+      <path className="poincare-card-secant" d="M275 28V122" />
+      {cells.map((row, rowIndex) => (
+        row.map((value, columnIndex) => (
+          <g key={`${rowIndex}-${columnIndex}`}>
+            <rect
+              className={`poincare-card-matrix-cell ${rowIndex === columnIndex ? "is-pivot" : ""} ${columnIndex === 3 ? "is-result" : ""}`}
+              x={108 + columnIndex * 54}
+              y={33 + rowIndex * 34}
+              width="38"
+              height="24"
+            />
+            <text x={127 + columnIndex * 54} y={50 + rowIndex * 34} textAnchor="middle">{value}</text>
+          </g>
+        ))
+      ))}
+      <path className="poincare-card-projection" d="M108 91H254M108 125H254" />
+    </svg>
+  );
+}
+
+function MiniLUPlot() {
+  return (
+    <svg className="poincare-card-plot poincare-card-matrix" viewBox="0 0 420 150">
+      <MiniGrid />
+      <text x="64" y="82" textAnchor="middle">P</text>
+      <text x="113" y="82" textAnchor="middle">A</text>
+      <text x="158" y="82" textAnchor="middle">=</text>
+      <path className="poincare-card-bracket" d="M190 33H182V119H190M263 33H271V119H263" />
+      <path className="poincare-card-bracket" d="M307 33H299V119H307M380 33H388V119H380" />
+      {[0, 1, 2].map((row) => (
+        [0, 1, 2].map((column) => (
+          <rect
+            className={`poincare-card-matrix-cell ${row === column ? "is-pivot" : ""} ${row > column ? "is-result" : ""}`}
+            x={195 + column * 22}
+            y={42 + row * 24}
+            width="16"
+            height="16"
+            key={`l-${row}-${column}`}
+          />
+        ))
+      ))}
+      {[0, 1, 2].map((row) => (
+        [0, 1, 2].map((column) => (
+          <rect
+            className={`poincare-card-matrix-cell ${row <= column ? "is-pivot" : ""}`}
+            x={312 + column * 22}
+            y={42 + row * 24}
+            width="16"
+            height="16"
+            key={`u-${row}-${column}`}
+          />
+        ))
+      ))}
+      <text x="226" y="136" textAnchor="middle">L</text>
+      <text x="343" y="136" textAnchor="middle">U</text>
+    </svg>
+  );
+}
+
 const tools = [
   {
     to: "/espaco-poincare/bissecao",
@@ -166,6 +237,32 @@ const tools = [
     features: [
       { Icon: GitCompareArrows, label: "Dois chutes livres" },
       { Icon: Activity, label: "Inclinação sem derivada" },
+    ],
+  },
+  {
+    to: "/espaco-poincare/eliminacao-gaussiana",
+    number: "06",
+    title: "Eliminação gaussiana",
+    description: "Reduza sistemas lineares por operações elementares, acompanhe pivôs e resolva por substituição retroativa.",
+    formula: "Lᵢ ← Lᵢ − mᵢₖLₖ",
+    modifier: "is-gaussian",
+    Plot: MiniGaussianPlot,
+    features: [
+      { Icon: Grid3X3, label: "Matriz aumentada" },
+      { Icon: Terminal, label: "Operações de linha" },
+    ],
+  },
+  {
+    to: "/espaco-poincare/fatoracao-lu",
+    number: "07",
+    title: "Fatoração LU",
+    description: "Decomponha A em fatores triangulares, visualize os multiplicadores e leia a forma PA = LU passo a passo.",
+    formula: "PA = LU",
+    modifier: "is-lu",
+    Plot: MiniLUPlot,
+    features: [
+      { Icon: Grid3X3, label: "Fatores P, L e U" },
+      { Icon: Terminal, label: "Multiplicadores" },
     ],
   },
 ];

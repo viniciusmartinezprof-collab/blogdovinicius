@@ -6,6 +6,8 @@ const AdminPage = lazy(() => import("./pages/AdminPage.jsx"));
 const BisectionSimulatorPage = lazy(() => import("./pages/BisectionSimulatorPage.jsx"));
 const FalsePositionSimulatorPage = lazy(() => import("./pages/FalsePositionSimulatorPage.jsx"));
 const FixedPointSimulatorPage = lazy(() => import("./pages/FixedPointSimulatorPage.jsx"));
+const GaussianEliminationSimulatorPage = lazy(() => import("./pages/GaussianEliminationSimulatorPage.jsx"));
+const LUFactorizationSimulatorPage = lazy(() => import("./pages/LUFactorizationSimulatorPage.jsx"));
 const NewtonRaphsonSimulatorPage = lazy(() => import("./pages/NewtonRaphsonSimulatorPage.jsx"));
 const PoincareHubPage = lazy(() => import("./pages/PoincareHubPage.jsx"));
 const PublicPortal = lazy(() => import("./pages/PublicPortal.jsx"));
@@ -20,6 +22,8 @@ const PAGE_TITLES = {
   "/espaco-poincare/ponto-fixo": "Ponto fixo | Espaço Poincaré",
   "/espaco-poincare/newton-raphson": "Newton–Raphson | Espaço Poincaré",
   "/espaco-poincare/secantes": "Método das secantes | Espaço Poincaré",
+  "/espaco-poincare/eliminacao-gaussiana": "Eliminação gaussiana | Espaço Poincaré",
+  "/espaco-poincare/fatoracao-lu": "Fatoração LU | Espaço Poincaré",
   "/admin": "Administração | VMM Space",
 };
 
@@ -58,6 +62,8 @@ function App() {
           <Route path="/espaco-poincare/ponto-fixo" element={<FixedPointSimulatorPage />} />
           <Route path="/espaco-poincare/newton-raphson" element={<NewtonRaphsonSimulatorPage />} />
           <Route path="/espaco-poincare/secantes" element={<SecantSimulatorPage />} />
+          <Route path="/espaco-poincare/eliminacao-gaussiana" element={<GaussianEliminationSimulatorPage />} />
+          <Route path="/espaco-poincare/fatoracao-lu" element={<LUFactorizationSimulatorPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

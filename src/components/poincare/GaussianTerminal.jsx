@@ -17,7 +17,7 @@ function formatVector(solution) {
   return solution.map((value, index) => `x${index + 1}=${formatNumber(value)}`).join(", ");
 }
 
-function operationLine(step) {
+function operationLine(step, pivoting) {
   if (!step) return "Aguardando dados.";
 
   if (step.type === "eliminate") {
@@ -29,7 +29,9 @@ function operationLine(step) {
   }
 
   if (step.type === "pivot") {
-    return `Pivô candidato: linha ${step.pivotRow + 1}, coluna ${step.column + 1}.`;
+    return pivoting
+      ? `Pivô candidato: linha ${step.pivotRow + 1}, coluna ${step.column + 1}.`
+      : `Pivô fixo na diagonal: linha ${step.column + 1}, coluna ${step.column + 1}.`;
   }
 
   if (step.type === "skip") {
@@ -69,14 +71,17 @@ function GaussianTerminal({ run, activeIndex }) {
 
       <div className="iteration-terminal-body" ref={bodyRef}>
         <p className="iteration-terminal-line is-command">
-          <span className="iteration-terminal-prompt">λ</span> executar eliminação gaussiana com pivoteamento parcial
+          <span className="iteration-terminal-prompt">λ</span>{" "}
+          {run.pivoting
+            ? "executar eliminação gaussiana com pivoteamento parcial"
+            : "executar eliminação gaussiana sem pivoteamento"}
         </p>
         {shownSteps.map((currentStep, index) => (
           <div key={`${currentStep.type}-${index}`}>
             <p className={`iteration-terminal-line ${index === activeIndex ? "is-decision" : "is-muted"}`}>
               [{String(index).padStart(2, "0")}] {currentStep.title}
             </p>
-            <p className="iteration-terminal-line">{operationLine(currentStep)}</p>
+            <p className="iteration-terminal-line">{operationLine(currentStep, run.pivoting)}</p>
           </div>
         ))}
 

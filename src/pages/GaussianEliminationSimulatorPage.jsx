@@ -145,15 +145,39 @@ function StepTable({ run, activeIndex, onSelect }) {
   );
 }
 
-function GaussianEliminationSimulatorPage() {
-  const [inputs, setInputs] = useState(DEFAULT_INPUTS);
-  const [formError, setFormError] = useState(null);
-  const [run, setRun] = useState(() => runGaussianElimination(normalizeInputs(DEFAULT_INPUTS)));
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState(650);
-  const playbackRef = useRef(null);
+function makeRuns(inputs) {
+  const normalized = normalizeInputs(inputs);
 
+  return {
+    withoutPivoting: runGaussianElimination({ ...normalized, pivoting: false }),
+    withPivoting: runGaussianElimination({ ...normalized, pivoting: true }),
+  };
+}
+
+function getStatusLabel(run, activeIndex, isPlaying) {
+  const lastIndex = Math.max(0, run.steps.length - 1);
+  const isAtEnd = activeIndex >= lastIndex;
+
+  if (isAtEnd) return run.converged ? "Solução única" : "Sem solução única";
+  if (isPlaying) return "Simulação em curso";
+  if (activeIndex === 0) return "Pronto para reproduzir";
+  return "Simulação pausada";
+}
+
+function SimulationPanel({
+  id,
+  order,
+  title,
+  kicker,
+  run,
+  activeIndex,
+  isPlaying,
+  speed,
+  setSpeed,
+  onSelectStep,
+  onTogglePlay,
+  playbackRef,
+}) {
   const lastIndex = Math.max(0, run.steps.length - 1);
   const activeStep = run.steps[Math.min(activeIndex, lastIndex)];
   const isAtEnd = activeIndex >= lastIndex;
@@ -161,20 +185,148 @@ function GaussianEliminationSimulatorPage() {
   const progress = lastIndex === 0 ? 100 : (activeIndex / lastIndex) * 100;
   const size = run.matrix.length;
 
-  useEffect(() => {
-    if (!isPlaying) return undefined;
+  return (
+    <section className="bisection-results gaussian-simulation-panel" aria-labelledby={`${id}-simulation-title`}>
+      <div className="bisection-results-heading">
+        <div className="bisection-section-heading">
+          <span>{order}</span>
+          <div>
+            <p className="section-kicker">{kicker}</p>
+            <h2 id={`${id}-simulation-title`}>{title}</h2>
+          </div>
+        </div>
+        <div className={`bisection-run-status ${isAtEnd ? (run.converged ? "is-finished" : "is-warning") : ""}`}>
+          {isAtEnd
+            ? run.converged
+              ? <CircleCheck size={16} aria-hidden="true" />
+              : <TriangleAlert size={16} aria-hidden="true" />
+            : <Gauge size={16} aria-hidden="true" />}
+          {getStatusLabel(run, activeIndex, isPlaying)}
+        </div>
+      </div>
 
+      <div className="bisection-metrics" aria-live="polite">
+        <div>
+          <span>Dimensão</span>
+          <strong>{size} equações · {size} incógnitas</strong>
+        </div>
+        <div>
+          <span>Passo atual</span>
+          <strong>{stepKindLabel(activeStep?.type)}</strong>
+        </div>
+        <div>
+          <span>Pivô em foco</span>
+          <strong>{activeStep?.pivotRow === undefined ? "—" : `L${activeStep.pivotRow + 1}, C${(activeStep.column ?? 0) + 1}`}</strong>
+        </div>
+        <div>
+          <span>Solução</span>
+          <strong>{isAtEnd && run.converged ? formatSolution(run.solution) : "em construção"}</strong>
+        </div>
+      </div>
+
+      <div className="bisection-playback" ref={playbackRef}>
+        <div className="bisection-controls" aria-label={`Controles da simulação ${title}`}>
+          <button type="button" onClick={() => onSelectStep(0)} disabled={activeIndex === 0} title="Reiniciar">
+            <RotateCcw size={17} aria-hidden="true" /><span className="sr-only">Reiniciar</span>
+          </button>
+          <button type="button" onClick={() => onSelectStep(activeIndex - 1)} disabled={activeIndex === 0}>
+            <ChevronLeft size={18} aria-hidden="true" /> Anterior
+          </button>
+          <button
+            className="is-primary"
+            type="button"
+            onClick={onTogglePlay}
+            disabled={!canPlay}
+            aria-pressed={isPlaying}
+          >
+            {isPlaying ? <Pause size={18} aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}
+            {!canPlay ? "Concluído" : isPlaying ? "Pausar" : isAtEnd || activeIndex === 0 ? "Reproduzir" : "Continuar"}
+          </button>
+          <button type="button" onClick={() => onSelectStep(activeIndex + 1)} disabled={isAtEnd}>
+            Próxima <ChevronRight size={18} aria-hidden="true" />
+          </button>
+        </div>
+
+        <label className="bisection-timeline" htmlFor={`${id}-timeline`}>
+          <span>Passo <strong>{activeIndex}</strong> de {lastIndex}</span>
+          <input
+            id={`${id}-timeline`}
+            type="range"
+            min="0"
+            max={lastIndex}
+            value={activeIndex}
+            disabled={!canPlay}
+            style={{ "--timeline-progress": `${progress}%` }}
+            onChange={(event) => onSelectStep(Number(event.target.value))}
+          />
+        </label>
+
+        <label className="bisection-speed" htmlFor={`${id}-speed`}>
+          Velocidade
+          <select id={`${id}-speed`} value={speed} onChange={(event) => setSpeed(Number(event.target.value))}>
+            {SPEEDS.map((option) => <option key={option.delay} value={option.delay}>{option.label}</option>)}
+          </select>
+        </label>
+      </div>
+
+      <div className="bisection-workspace">
+        <div className="bisection-visual-panel">
+          <div className="bisection-panel-label">
+            <span>Matriz da etapa</span>
+            <code>{activeStep?.title}</code>
+          </div>
+          <GaussianMatrixView step={activeStep} />
+        </div>
+        <GaussianTerminal run={run} activeIndex={activeIndex} />
+      </div>
+
+      {isAtEnd ? (
+        <p className={`bisection-conclusion ${run.converged ? "" : "is-warning"}`}>
+          {run.converged ? <CircleCheck size={18} aria-hidden="true" /> : <TriangleAlert size={18} aria-hidden="true" />}
+          <span>
+            <strong>{run.converged ? `Solução: ${formatSolution(run.solution)}` : "Não há solução única detectável"}</strong>{" — "}
+            {run.converged
+              ? "a matriz foi reduzida à forma triangular e resolvida por substituição retroativa."
+              : "um pivô ficou numericamente nulo neste modo; o sistema pode ser indeterminado ou incompatível."}
+          </span>
+        </p>
+      ) : null}
+
+      <StepTable run={run} activeIndex={activeIndex} onSelect={onSelectStep} />
+    </section>
+  );
+}
+
+function GaussianEliminationSimulatorPage() {
+  const [inputs, setInputs] = useState(DEFAULT_INPUTS);
+  const [formError, setFormError] = useState(null);
+  const [runs, setRuns] = useState(() => makeRuns(DEFAULT_INPUTS));
+  const [activeIndexes, setActiveIndexes] = useState({ withoutPivoting: 0, withPivoting: 0 });
+  const [playingPanel, setPlayingPanel] = useState(null);
+  const [speed, setSpeed] = useState(650);
+  const playbackRef = useRef(null);
+
+  useEffect(() => {
+    if (!playingPanel) return undefined;
+
+    const run = runs[playingPanel];
+    const activeIndex = activeIndexes[playingPanel];
+    const lastIndex = Math.max(0, run.steps.length - 1);
+    const isAtEnd = activeIndex >= lastIndex;
     if (isAtEnd) {
-      setIsPlaying(false);
+      setPlayingPanel(null);
       return undefined;
     }
 
     const timer = window.setTimeout(() => {
-      setActiveIndex((current) => Math.min(current + 1, lastIndex));
+      setActiveIndexes((current) => ({
+        ...current,
+        [playingPanel]: Math.min(current[playingPanel] + 1, lastIndex),
+      }));
     }, speed);
 
     return () => window.clearTimeout(timer);
-  }, [activeIndex, isAtEnd, isPlaying, lastIndex, speed]);
+  }, [activeIndexes, playingPanel, runs, speed]);
 
   function updateInput(field, value) {
     setInputs((current) => ({ ...current, [field]: value }));
@@ -183,12 +335,11 @@ function GaussianEliminationSimulatorPage() {
 
   function executeSimulation(nextInputs = inputs, scrollToResults = false) {
     try {
-      const normalized = normalizeInputs(nextInputs);
-      const result = runGaussianElimination(normalized);
-      setRun(result);
-      setActiveIndex(0);
+      const result = makeRuns(nextInputs);
+      setRuns(result);
+      setActiveIndexes({ withoutPivoting: 0, withPivoting: 0 });
       setFormError(null);
-      setIsPlaying(false);
+      setPlayingPanel(null);
 
       if (scrollToResults) {
         const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
@@ -200,7 +351,7 @@ function GaussianEliminationSimulatorPage() {
         });
       }
     } catch (error) {
-      setIsPlaying(false);
+      setPlayingPanel(null);
       setFormError({ field: error.field || "matrix", message: error.message });
     }
   }
@@ -216,9 +367,24 @@ function GaussianEliminationSimulatorPage() {
     executeSimulation(nextInputs);
   }
 
-  function selectStep(index) {
-    setIsPlaying(false);
-    setActiveIndex(Math.max(0, Math.min(index, lastIndex)));
+  function selectStep(panel, index) {
+    const lastIndex = Math.max(0, runs[panel].steps.length - 1);
+    setPlayingPanel(null);
+    setActiveIndexes((current) => ({
+      ...current,
+      [panel]: Math.max(0, Math.min(index, lastIndex)),
+    }));
+  }
+
+  function togglePlay(panel) {
+    const lastIndex = Math.max(0, runs[panel].steps.length - 1);
+    const isAtEnd = activeIndexes[panel] >= lastIndex;
+
+    if (isAtEnd) {
+      setActiveIndexes((current) => ({ ...current, [panel]: 0 }));
+    }
+
+    setPlayingPanel((current) => (current === panel ? null : panel));
   }
 
   return (
@@ -299,7 +465,7 @@ function GaussianEliminationSimulatorPage() {
               </p>
             ) : (
               <p className="bisection-form-note" id="simulator-error">
-                O simulador usa pivoteamento parcial e aceita sistemas de 2×2 até 6×6.
+                A mesma matriz será resolvida primeiro sem pivotamento e depois com pivotamento parcial.
               </p>
             )}
 
@@ -309,125 +475,34 @@ function GaussianEliminationSimulatorPage() {
           </form>
         </section>
 
-        <section className="bisection-results" aria-labelledby="simulation-title">
-          <div className="bisection-results-heading">
-            <div className="bisection-section-heading">
-              <span>02</span>
-              <div>
-                <p className="section-kicker">Acompanhe o algoritmo</p>
-                <h2 id="simulation-title">Operações elementares</h2>
-              </div>
-            </div>
-            <div className={`bisection-run-status ${isAtEnd ? (run.converged ? "is-finished" : "is-warning") : ""}`}>
-              {isAtEnd
-                ? run.converged
-                  ? <CircleCheck size={16} aria-hidden="true" />
-                  : <TriangleAlert size={16} aria-hidden="true" />
-                : <Gauge size={16} aria-hidden="true" />}
-              {isAtEnd
-                ? run.converged
-                  ? "Solução única"
-                  : "Sem solução única"
-                : isPlaying
-                  ? "Simulação em curso"
-                  : activeIndex === 0
-                    ? "Pronto para reproduzir"
-                    : "Simulação pausada"}
-            </div>
-          </div>
+        <SimulationPanel
+          id="gaussian-without-pivoting"
+          order="02"
+          title="Eliminação sem pivotamento"
+          kicker="Primeiro, sem trocar linhas"
+          run={runs.withoutPivoting}
+          activeIndex={activeIndexes.withoutPivoting}
+          isPlaying={playingPanel === "withoutPivoting"}
+          speed={speed}
+          setSpeed={setSpeed}
+          onSelectStep={(index) => selectStep("withoutPivoting", index)}
+          onTogglePlay={() => togglePlay("withoutPivoting")}
+          playbackRef={playbackRef}
+        />
 
-          <div className="bisection-metrics" aria-live="polite">
-            <div>
-              <span>Dimensão</span>
-              <strong>{size} equações · {size} incógnitas</strong>
-            </div>
-            <div>
-              <span>Passo atual</span>
-              <strong>{stepKindLabel(activeStep?.type)}</strong>
-            </div>
-            <div>
-              <span>Pivô em foco</span>
-              <strong>{activeStep?.pivotRow === undefined ? "—" : `L${activeStep.pivotRow + 1}, C${(activeStep.column ?? 0) + 1}`}</strong>
-            </div>
-            <div>
-              <span>Solução</span>
-              <strong>{isAtEnd && run.converged ? formatSolution(run.solution) : "em construção"}</strong>
-            </div>
-          </div>
-
-          <div className="bisection-playback" ref={playbackRef}>
-            <div className="bisection-controls" aria-label="Controles da simulação">
-              <button type="button" onClick={() => selectStep(0)} disabled={activeIndex === 0} title="Reiniciar">
-                <RotateCcw size={17} aria-hidden="true" /><span className="sr-only">Reiniciar</span>
-              </button>
-              <button type="button" onClick={() => selectStep(activeIndex - 1)} disabled={activeIndex === 0}>
-                <ChevronLeft size={18} aria-hidden="true" /> Anterior
-              </button>
-              <button
-                className="is-primary"
-                type="button"
-                onClick={() => {
-                  if (isAtEnd) setActiveIndex(0);
-                  setIsPlaying((current) => !current || isAtEnd);
-                }}
-                disabled={!canPlay}
-                aria-pressed={isPlaying}
-              >
-                {isPlaying ? <Pause size={18} aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}
-                {!canPlay ? "Concluído" : isPlaying ? "Pausar" : isAtEnd || activeIndex === 0 ? "Reproduzir" : "Continuar"}
-              </button>
-              <button type="button" onClick={() => selectStep(activeIndex + 1)} disabled={isAtEnd}>
-                Próxima <ChevronRight size={18} aria-hidden="true" />
-              </button>
-            </div>
-
-            <label className="bisection-timeline" htmlFor="gaussian-timeline">
-              <span>Passo <strong>{activeIndex}</strong> de {lastIndex}</span>
-              <input
-                id="gaussian-timeline"
-                type="range"
-                min="0"
-                max={lastIndex}
-                value={activeIndex}
-                disabled={!canPlay}
-                style={{ "--timeline-progress": `${progress}%` }}
-                onChange={(event) => selectStep(Number(event.target.value))}
-              />
-            </label>
-
-            <label className="bisection-speed" htmlFor="simulation-speed">
-              Velocidade
-              <select id="simulation-speed" value={speed} onChange={(event) => setSpeed(Number(event.target.value))}>
-                {SPEEDS.map((option) => <option key={option.delay} value={option.delay}>{option.label}</option>)}
-              </select>
-            </label>
-          </div>
-
-          <div className="bisection-workspace">
-            <div className="bisection-visual-panel">
-              <div className="bisection-panel-label">
-                <span>Matriz da etapa</span>
-                <code>{activeStep?.title}</code>
-              </div>
-              <GaussianMatrixView step={activeStep} />
-            </div>
-            <GaussianTerminal run={run} activeIndex={activeIndex} />
-          </div>
-
-          {isAtEnd ? (
-            <p className={`bisection-conclusion ${run.converged ? "" : "is-warning"}`}>
-              {run.converged ? <CircleCheck size={18} aria-hidden="true" /> : <TriangleAlert size={18} aria-hidden="true" />}
-              <span>
-                <strong>{run.converged ? `Solução: ${formatSolution(run.solution)}` : "Não há solução única detectável"}</strong>{" — "}
-                {run.converged
-                  ? "a matriz foi reduzida à forma triangular e resolvida por substituição retroativa."
-                  : "um pivô ficou numericamente nulo; o sistema pode ser indeterminado ou incompatível."}
-              </span>
-            </p>
-          ) : null}
-
-          <StepTable run={run} activeIndex={activeIndex} onSelect={selectStep} />
-        </section>
+        <SimulationPanel
+          id="gaussian-with-pivoting"
+          order="03"
+          title="Eliminação com pivotamento parcial"
+          kicker="Depois, permitindo permutações"
+          run={runs.withPivoting}
+          activeIndex={activeIndexes.withPivoting}
+          isPlaying={playingPanel === "withPivoting"}
+          speed={speed}
+          setSpeed={setSpeed}
+          onSelectStep={(index) => selectStep("withPivoting", index)}
+          onTogglePlay={() => togglePlay("withPivoting")}
+        />
 
         <aside className="bisection-method-note">
           <span aria-hidden="true">i</span>
@@ -435,9 +510,9 @@ function GaussianEliminationSimulatorPage() {
             <h2>O que está sendo simulado?</h2>
             <p>
               A eliminação gaussiana aplica operações elementares nas linhas para
-              zerar os coeficientes abaixo da diagonal. Com pivoteamento parcial,
-              o maior coeficiente disponível sobe para a posição de pivô antes da
-              eliminação, reduzindo erros de arredondamento na aritmética do navegador.
+              zerar os coeficientes abaixo da diagonal. Sem pivotamento, cada pivô
+              fica preso à diagonal original; com pivoteamento parcial, o maior
+              coeficiente disponível sobe para a posição de pivô antes da eliminação.
             </p>
           </div>
         </aside>

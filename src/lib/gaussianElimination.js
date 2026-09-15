@@ -145,7 +145,7 @@ function makeStep(type, matrix, details = {}) {
   };
 }
 
-export function runGaussianElimination({ matrix, tolerance = DEFAULT_TOLERANCE } = {}) {
+export function runGaussianElimination({ matrix, tolerance = DEFAULT_TOLERANCE, pivoting = true } = {}) {
   const parsedTolerance = parseFiniteNumber(tolerance, "tolerance", "a tolerância");
   if (parsedTolerance <= 0) {
     throw new GaussianEliminationError("INVALID_TOLERANCE", "A tolerância precisa ser maior que zero.", "tolerance");
@@ -158,24 +158,31 @@ export function runGaussianElimination({ matrix, tolerance = DEFAULT_TOLERANCE }
   const steps = [
     makeStep("initial", normalizeMatrix(work, parsedTolerance), {
       title: "Matriz aumentada inicial",
-      description: "Começamos com [A | b], preservando cada equação como uma linha.",
+      description: pivoting
+        ? "Começamos com [A | b] e permitimos trocas de linha para escolher bons pivôs."
+        : "Começamos com [A | b] e mantemos a ordem original das equações.",
     }),
   ];
 
   for (let column = 0; column < size - 1; column += 1) {
-    const { pivotRow, pivotMagnitude } = findPivotRow(work, column);
+    const { pivotRow, pivotMagnitude } = pivoting
+      ? findPivotRow(work, column)
+      : { pivotRow: column, pivotMagnitude: Math.abs(work[column][column]) };
 
     steps.push(makeStep("pivot", normalizeMatrix(work, parsedTolerance), {
       column,
       pivotRow,
       title: `Escolha do pivô na coluna ${column + 1}`,
-      description: `Selecionamos a linha ${pivotRow + 1} porque tem o maior |aᵢ${column + 1}| disponível.`,
+      description: pivoting
+        ? `Selecionamos a linha ${pivotRow + 1} porque tem o maior |aᵢ${column + 1}| disponível.`
+        : `Usamos a própria linha ${column + 1} como pivô, sem permutar equações.`,
     }));
 
     if (pivotMagnitude <= parsedTolerance) {
       return {
         matrix: cloneMatrix(matrix),
         tolerance: parsedTolerance,
+        pivoting,
         steps,
         solution: null,
         converged: false,
@@ -183,7 +190,7 @@ export function runGaussianElimination({ matrix, tolerance = DEFAULT_TOLERANCE }
       };
     }
 
-    if (pivotRow !== column) {
+    if (pivoting && pivotRow !== column) {
       [work[column], work[pivotRow]] = [work[pivotRow], work[column]];
       steps.push(makeStep("swap", normalizeMatrix(work, parsedTolerance), {
         column,
@@ -240,6 +247,7 @@ export function runGaussianElimination({ matrix, tolerance = DEFAULT_TOLERANCE }
       matrix: cloneMatrix(matrix),
       triangularMatrix: normalizeMatrix(work, parsedTolerance),
       tolerance: parsedTolerance,
+      pivoting,
       steps,
       solution: null,
       converged: false,
@@ -260,6 +268,7 @@ export function runGaussianElimination({ matrix, tolerance = DEFAULT_TOLERANCE }
         matrix: cloneMatrix(matrix),
         triangularMatrix: normalizeMatrix(work, parsedTolerance),
         tolerance: parsedTolerance,
+        pivoting,
         steps,
         solution: null,
         converged: false,
@@ -285,6 +294,7 @@ export function runGaussianElimination({ matrix, tolerance = DEFAULT_TOLERANCE }
     matrix: cloneMatrix(matrix),
     triangularMatrix: normalizeMatrix(work, parsedTolerance),
     tolerance: parsedTolerance,
+    pivoting,
     steps,
     solution,
     converged: true,

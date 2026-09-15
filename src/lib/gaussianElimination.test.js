@@ -37,6 +37,36 @@ test("usa pivoteamento parcial quando o primeiro pivô é ruim", () => {
   assert.ok(result.steps.some((step) => step.type === "swap"));
 });
 
+test("resolve sem pivoteamento quando os pivôs diagonais são válidos", () => {
+  const result = runGaussianElimination({
+    matrix: [
+      [2, 1, 5],
+      [4, 5, 13],
+    ],
+    pivoting: false,
+  });
+
+  assert.equal(result.converged, true);
+  assert.equal(result.pivoting, false);
+  assert.deepEqual(result.solution, [2, 1]);
+  assert.ok(!result.steps.some((step) => step.type === "swap"));
+});
+
+test("sem pivoteamento interrompe quando o pivô diagonal é nulo", () => {
+  const result = runGaussianElimination({
+    matrix: [
+      [0, 2, 9],
+      [1, -1, 1],
+    ],
+    pivoting: false,
+  });
+
+  assert.equal(result.converged, false);
+  assert.equal(result.reason, "singular");
+  assert.equal(result.pivoting, false);
+  assert.equal(result.solution, null);
+});
+
 test("detecta matriz singular", () => {
   const result = runGaussianElimination({
     matrix: [

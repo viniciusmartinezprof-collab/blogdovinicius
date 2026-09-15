@@ -61,6 +61,34 @@ test("registra troca quando o pivoteamento parcial é necessário", () => {
   );
 });
 
+test("fatora sem pivoteamento quando os pivôs diagonais são válidos", () => {
+  const matrix = [
+    [2, 1],
+    [4, 3],
+  ];
+
+  const result = runLUFactorization({ matrix, pivoting: false });
+
+  assert.equal(result.converged, true);
+  assert.equal(result.pivoting, false);
+  assert.ok(!result.steps.some((step) => step.type === "swap"));
+  assertMatrixAlmostEqual(matrix, multiply(result.lower, result.upper));
+});
+
+test("sem pivoteamento interrompe quando o pivô diagonal é nulo", () => {
+  const result = runLUFactorization({
+    matrix: [
+      [0, 2],
+      [3, 4],
+    ],
+    pivoting: false,
+  });
+
+  assert.equal(result.converged, false);
+  assert.equal(result.reason, "singular");
+  assert.equal(result.pivoting, false);
+});
+
 test("detecta matriz singular", () => {
   const result = runLUFactorization({
     matrix: [

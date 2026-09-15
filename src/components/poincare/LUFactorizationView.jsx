@@ -42,7 +42,7 @@ function MatrixBlock({ label, matrix, step, kind }) {
   );
 }
 
-function LUFactorizationView({ step }) {
+function LUFactorizationView({ step, pivoting = true }) {
   if (!step) return null;
 
   return (
@@ -52,9 +52,15 @@ function LUFactorizationView({ step }) {
         <code>{step.lower.length} × {step.lower.length}</code>
       </div>
 
-      <div className="lu-equation" aria-label="Fatoração PA igual LU">
-        <MatrixBlock label="P" matrix={step.permutation} step={step} kind="permutation" />
-        <span className="lu-symbol">A</span>
+      <div className="lu-equation" aria-label={pivoting ? "Fatoração PA igual LU" : "Fatoração A igual LU"}>
+        {pivoting ? (
+          <>
+            <MatrixBlock label="P" matrix={step.permutation} step={step} kind="permutation" />
+            <span className="lu-symbol">A</span>
+          </>
+        ) : (
+          <span className="lu-symbol">A</span>
+        )}
         <span className="lu-symbol">=</span>
         <MatrixBlock label="L" matrix={step.lower} step={step} kind="lower" />
         <MatrixBlock label="U" matrix={step.upper} step={step} kind="upper" />

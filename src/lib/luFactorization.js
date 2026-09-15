@@ -168,7 +168,9 @@ export function runLUFactorization({ matrix, tolerance = DEFAULT_TOLERANCE, pivo
       upper,
       permutation,
       title: "Matriz inicial",
-      description: "Começamos procurando uma decomposição PA = LU.",
+      description: pivoting
+        ? "Começamos procurando uma decomposição PA = LU."
+        : "Começamos procurando uma decomposição A = LU, mantendo a ordem das linhas.",
     }, parsedTolerance),
   ];
 

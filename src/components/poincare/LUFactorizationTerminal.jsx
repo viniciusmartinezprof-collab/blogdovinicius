@@ -12,11 +12,13 @@ function formatNumber(value, digits = 8) {
   return Number(value.toPrecision(digits)).toString();
 }
 
-function operationLine(step) {
+function operationLine(step, pivoting) {
   if (!step) return "Aguardando dados.";
 
   if (step.type === "pivot") {
-    return `Pivô candidato: u${step.pivotRow + 1}${step.column + 1}.`;
+    return pivoting
+      ? `Pivô candidato: u${step.pivotRow + 1}${step.column + 1}.`
+      : `Pivô fixo na diagonal: u${step.column + 1}${step.column + 1}.`;
   }
 
   if (step.type === "swap") {
@@ -60,7 +62,10 @@ function LUFactorizationTerminal({ run, activeIndex }) {
 
       <div className="iteration-terminal-body" ref={bodyRef}>
         <p className="iteration-terminal-line is-command">
-          <span className="iteration-terminal-prompt">λ</span> fatorar matriz por LU com pivoteamento parcial
+          <span className="iteration-terminal-prompt">λ</span>{" "}
+          {run.pivoting
+            ? "fatorar matriz por LU com pivoteamento parcial"
+            : "fatorar matriz por LU sem pivoteamento"}
         </p>
 
         {shownSteps.map((currentStep, index) => (
@@ -68,7 +73,7 @@ function LUFactorizationTerminal({ run, activeIndex }) {
             <p className={`iteration-terminal-line ${index === activeIndex ? "is-decision" : "is-muted"}`}>
               [{String(index).padStart(2, "0")}] {currentStep.title}
             </p>
-            <p className="iteration-terminal-line">{operationLine(currentStep)}</p>
+            <p className="iteration-terminal-line">{operationLine(currentStep, run.pivoting)}</p>
           </div>
         ))}
 
@@ -79,7 +84,7 @@ function LUFactorizationTerminal({ run, activeIndex }) {
         {activeIndex === run.steps.length - 1 ? (
           <p className={`iteration-terminal-line ${run.converged ? "is-result" : "is-warning"}`}>
             {run.converged
-              ? "Fatoração validada visualmente como PA = LU."
+              ? `Fatoração validada visualmente como ${run.pivoting ? "PA = LU" : "A = LU"}.`
               : "A fatoração parou porque um pivô ficou numericamente nulo."}
           </p>
         ) : null}

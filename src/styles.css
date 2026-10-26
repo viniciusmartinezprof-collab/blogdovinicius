@@ -1961,3 +1961,27 @@ body {
   .portal-landing-card,
   .portal-landing-card-action svg { transition: none; }
 }
+
+/* Cholesky shares the Poincaré simulator layout and matrix palette. */
+.cholesky-criteria { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin: 24px 0; }
+.cholesky-criteria article { padding: 20px; border: 1px solid rgba(104, 201, 190, .25); border-radius: 12px; min-width: 0; }
+.cholesky-criteria h3 { margin-top: 0; }
+.cholesky-criteria p, .cholesky-criteria li { line-height: 1.65; overflow-wrap: anywhere; }
+.cholesky-vector label { display: block; margin-bottom: 8px; }
+.cholesky-vector input { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #739b94; border-radius: 6px; font: inherit; }
+.cholesky-matrix { grid-template-columns: repeat(var(--lu-columns), minmax(58px, auto)); }
+.cholesky-matrix .lu-cell { width: auto; min-width: 58px; padding: 5px; font-size: .72rem; }
+@media (max-width: 1000px) { .cholesky-criteria { grid-template-columns: 1fr; } }
+.cholesky-stage { min-width: 0; overflow-x: auto; }
+.cholesky-stage .lu-equation { grid-template-columns: auto auto auto; justify-content: safe center; }
+
+.stationary-matrices { display: flex; align-items: center; gap: 24px; overflow-x: auto; padding: 24px 16px; min-width: 0; background: rgba(4, 15, 25, .4); border-radius: 10px; }
+.stationary-matrices > * { flex-shrink: 0; }
+.stationary-formula { line-height: 1.8; overflow-wrap: anywhere; }
+.stationary-criteria { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.stationary-criteria article { min-width: 0; padding: 16px; border: 1px solid rgba(104, 201, 190, .25); border-radius: 12px; }
+.stationary-criteria p, .stationary-criteria li { line-height: 1.65; overflow-wrap: anywhere; }
+.stationary-plot { margin: 20px; color: #bed0d8; }
+.stationary-plot svg { display: block; width: 100%; margin: 16px 0; }
+.stationary-plot text { fill: currentColor; font-size: 11px; }
+@media (max-width: 900px) { .stationary-criteria { grid-template-columns: 1fr; } }

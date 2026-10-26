@@ -2,11 +2,14 @@ import { lazy, Suspense, useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import HomePage from "./pages/HomePage.jsx";
 
+const GaussJacobiSimulatorPage = lazy(() => import("./pages/GaussJacobiSimulatorPage.jsx"));
+const GaussSeidelSimulatorPage = lazy(() => import("./pages/GaussSeidelSimulatorPage.jsx"));
 const AdminPage = lazy(() => import("./pages/AdminPage.jsx"));
 const BisectionSimulatorPage = lazy(() => import("./pages/BisectionSimulatorPage.jsx"));
 const FalsePositionSimulatorPage = lazy(() => import("./pages/FalsePositionSimulatorPage.jsx"));
 const FixedPointSimulatorPage = lazy(() => import("./pages/FixedPointSimulatorPage.jsx"));
 const GaussianEliminationSimulatorPage = lazy(() => import("./pages/GaussianEliminationSimulatorPage.jsx"));
+const CholeskySimulatorPage = lazy(() => import("./pages/CholeskySimulatorPage.jsx"));
 const LUFactorizationSimulatorPage = lazy(() => import("./pages/LUFactorizationSimulatorPage.jsx"));
 const NewtonRaphsonSimulatorPage = lazy(() => import("./pages/NewtonRaphsonSimulatorPage.jsx"));
 const PoincareHubPage = lazy(() => import("./pages/PoincareHubPage.jsx"));
@@ -23,7 +26,10 @@ const PAGE_TITLES = {
   "/espaco-poincare/newton-raphson": "Newton–Raphson | Espaço Poincaré",
   "/espaco-poincare/secantes": "Método das secantes | Espaço Poincaré",
   "/espaco-poincare/eliminacao-gaussiana": "Eliminação gaussiana | Espaço Poincaré",
+  "/espaco-poincare/fatoracao-cholesky": "Fatoração de Cholesky | Espaço Poincaré",
   "/espaco-poincare/fatoracao-lu": "Fatoração LU | Espaço Poincaré",
+  "/espaco-poincare/gauss-jacobi": "Método de Gauss Jacobi | Espaço Poincaré",
+  "/espaco-poincare/gauss-seidel": "Método de Gauss Seidel | Espaço Poincaré",
   "/admin": "Administração | VMM Space",
 };
 
@@ -63,7 +69,10 @@ function App() {
           <Route path="/espaco-poincare/newton-raphson" element={<NewtonRaphsonSimulatorPage />} />
           <Route path="/espaco-poincare/secantes" element={<SecantSimulatorPage />} />
           <Route path="/espaco-poincare/eliminacao-gaussiana" element={<GaussianEliminationSimulatorPage />} />
+          <Route path="/espaco-poincare/fatoracao-cholesky" element={<CholeskySimulatorPage />} />
           <Route path="/espaco-poincare/fatoracao-lu" element={<LUFactorizationSimulatorPage />} />
+          <Route path="/espaco-poincare/gauss-jacobi" element={<GaussJacobiSimulatorPage />} />
+          <Route path="/espaco-poincare/gauss-seidel" element={<GaussSeidelSimulatorPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

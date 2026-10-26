@@ -134,11 +134,11 @@ function MiniGaussianPlot() {
   );
 }
 
-function MiniLUPlot() {
+function MiniLUPlot({ cholesky = false }) {
   return (
     <svg className="poincare-card-plot poincare-card-matrix" viewBox="0 0 420 150">
       <MiniGrid />
-      <text x="64" y="82" textAnchor="middle">P</text>
+      <text x="64" y="82" textAnchor="middle">{cholesky ? "" : "P"}</text>
       <text x="113" y="82" textAnchor="middle">A</text>
       <text x="158" y="82" textAnchor="middle">=</text>
       <path className="poincare-card-bracket" d="M190 33H182V119H190M263 33H271V119H263" />
@@ -167,10 +167,21 @@ function MiniLUPlot() {
           />
         ))
       ))}
-      <text x="226" y="136" textAnchor="middle">L</text>
-      <text x="343" y="136" textAnchor="middle">U</text>
+      <text x="226" y="136" textAnchor="middle">{cholesky ? "G" : "L"}</text>
+      <text x="343" y="136" textAnchor="middle">{cholesky ? "Gᵀ" : "U"}</text>
     </svg>
   );
+}
+
+function MiniCholeskyPlot() { return <MiniLUPlot cholesky />; }
+
+function MiniIterationPlot() {
+  return <svg className="poincare-card-plot" viewBox="0 0 420 150">
+    <MiniGrid />
+    <path className="poincare-card-axis" d="M40 15V125H400" />
+    <path className="poincare-card-curve" d="M50 25L110 68L170 91L230 107L290 117L350 121" />
+    <text x="60" y="145">k →</text><text x="260" y="35">ρ(T) &lt; 1</text>
+  </svg>;
 }
 
 const tools = [
@@ -264,6 +275,29 @@ const tools = [
       { Icon: Grid3X3, label: "Fatores P, L e U" },
       { Icon: Terminal, label: "Multiplicadores" },
     ],
+  },
+  {
+    to: "/espaco-poincare/fatoracao-cholesky",
+    number: "08",
+    title: "Fatoração de Cholesky",
+    description: "Verifique simetria e definição positiva, explore os três critérios e construa G passo a passo.",
+    formula: "A = GGᵀ",
+    modifier: "is-lu",
+    Plot: MiniCholeskyPlot,
+    features: [
+      { Icon: Grid3X3, label: "Simetria e definição positiva" },
+      { Icon: Terminal, label: "Fatores G e Gᵀ" },
+    ],
+  },
+  {
+    to: "/espaco-poincare/gauss-jacobi", number: "09", title: "Método de Gauss-Jacobi",
+    description: "Atualize as componentes usando a iteração anterior e explore dominância diagonal e raio espectral.", formula: "A = D + L + U", modifier: "is-lu", Plot: MiniIterationPlot,
+    features: [{ Icon: Grid3X3, label: "Matriz de iteração" }, { Icon: Activity, label: "Critérios de convergência" }],
+  },
+  {
+    to: "/espaco-poincare/gauss-seidel", number: "10", title: "Método de Gauss-Seidel",
+    description: "Use os novos valores imediatamente e acompanhe como a matriz de iteração determina a convergência.", formula: "A = D + L + U", modifier: "is-lu", Plot: MiniIterationPlot,
+    features: [{ Icon: Grid3X3, label: "Matriz de iteração" }, { Icon: Activity, label: "Critérios de convergência" }],
   },
 ];
 

@@ -1,0 +1,1 @@
+import{r as e}from"./MathRibbon-TEX9h6PX.js";import{t}from"./StationaryIterationSimulatorPage-BezfwZHv.js";var n=e();function r(){return(0,n.jsx)(t,{method:`seidel`})}export{r as default};
